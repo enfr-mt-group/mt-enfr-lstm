@@ -1,0 +1,213 @@
+# src/dataset.py
+import os
+import gzip
+import pickle
+import torch
+from torch.utils.data import Dataset, DataLoader
+from torch.nn.utils.rnn import pad_sequence
+from collections import Counter
+from tqdm import tqdm
+import spacy
+
+# =============================
+# 1. Tokenizer
+# =============================
+# Load spacy models cho tiếng Anh và tiếng Pháp
+spacy_en = spacy.load("en_core_web_sm")
+spacy_fr = spacy.load("fr_core_news_sm")
+
+def tokenize_en(text):
+    # Tokenize và chuyển về chữ thường tiếng Anh
+    return [tok.text.lower() for tok in spacy_en.tokenizer(text)]
+
+def tokenize_fr(text):
+    # Tokenize và chuyển về chữ thường tiếng Pháp
+    return [tok.text.lower() for tok in spacy_fr.tokenizer(text)]
+
+# =============================
+# 2. Vocabulary
+# =============================
+class Vocab:
+    """
+    Xây dựng vocab từ danh sách câu.
+    - freq_threshold: số lần xuất hiện tối thiểu để giữ từ
+    - max_size: giới hạn số từ phổ biến nhất
+    - stoi: từ -> index
+    - itos: index -> từ
+    """
+    
+    def __init__(self, freq_threshold=2, max_size=None):
+        self.freq_threshold = freq_threshold
+        self.max_size = max_size
+        self.itos = {0:"<pad>", 1:"<sos>", 2:"<eos>", 3:"<unk>"}
+        self.stoi = {v:k for k,v in self.itos.items()}
+
+    def build_vocabulary(self, sentence_list):
+        freqs = Counter()
+        idx = 4
+        for sentence in sentence_list:
+            for word in sentence:
+                freqs[word] += 1
+
+        # Chọn từ theo tần suất >= freq_threshold, sắp xếp giảm dần
+        sorted_words = sorted([w for w,f in freqs.items() if f>=self.freq_threshold], key=lambda x: freqs[x], reverse=True)
+        if self.max_size:
+            sorted_words = sorted_words[:self.max_size]
+
+        for word in sorted_words:
+            self.stoi[word] = idx
+            self.itos[idx] = word
+            idx += 1
+
+    def numericalize(self, tokens):
+        # Chuyển danh sách từ thành danh sách index
+        return [self.stoi.get(token, self.stoi["<unk>"]) for token in tokens]
+
+# =============================
+# 3. Dataset
+# =============================
+class TranslationDataset(Dataset):
+    """
+    Custom Dataset cho English->French
+    - src_path, trg_path: file raw (.en/.fr)
+    - src_tokenizer, trg_tokenizer: hàm tokenize
+    - src_vocab, trg_vocab: có thể truyền vào nếu đã build sẵn
+    """
+    def __init__(self, src_path, trg_path, src_tokenizer, trg_tokenizer, src_vocab=None, trg_vocab=None):
+        def read_file(path):
+            # Hỗ trợ đọc file .gz nếu cần
+            if path.endswith(".gz"):
+                with gzip.open(path, mode="rt", encoding="utf-8") as f:
+                    lines = f.read().strip().split("\n")
+            else:
+                with open(path, encoding="utf-8") as f:
+                    lines = f.read().strip().split("\n")
+            return lines
+
+        # load dữ liệu
+        src_lines = read_file(src_path)
+        trg_lines = read_file(trg_path)
+
+        # tokenize sentences
+        self.src_sentences = [src_tokenizer(line) for line in tqdm(src_lines)]
+        self.trg_sentences = [trg_tokenizer(line) for line in tqdm(trg_lines)]
+
+        # build vocab if not provided
+        if src_vocab is None:
+            self.src_vocab = Vocab(max_size=10000)
+            self.src_vocab.build_vocabulary(self.src_sentences)
+        else:
+            self.src_vocab = src_vocab
+
+        if trg_vocab is None:
+            self.trg_vocab = Vocab(max_size=10000)
+            self.trg_vocab.build_vocabulary(self.trg_sentences)
+        else:
+            self.trg_vocab = trg_vocab
+
+        self.pad_idx = self.src_vocab.stoi["<pad>"]
+
+    def __len__(self):
+        return len(self.src_sentences)
+
+    def __getitem__(self, idx):
+        # Thêm token <sos> và <eos> cho mỗi câu - src( tiếng Anh) và trg( tiếng Pháp)
+        src = [self.src_vocab.stoi["<sos>"]] + self.src_vocab.numericalize(self.src_sentences[idx]) + [self.src_vocab.stoi["<eos>"]]
+        trg = [self.trg_vocab.stoi["<sos>"]] + self.trg_vocab.numericalize(self.trg_sentences[idx]) + [self.trg_vocab.stoi["<eos>"]]
+        return torch.tensor(src), torch.tensor(trg)
+
+# =============================
+# 4. Collate function (padding)
+# =============================
+class MyCollate:
+    """
+    Padding batch để đồng bộ độ dài
+    - dùng cho DataLoader
+    """
+    def __init__(self, pad_idx):
+        self.pad_idx = pad_idx
+
+    def __call__(self, batch):
+        src = [item[0] for item in batch]
+        trg = [item[1] for item in batch]
+        src = pad_sequence(src, batch_first=True, padding_value=self.pad_idx)
+        trg = pad_sequence(trg, batch_first=True, padding_value=self.pad_idx)
+        return src, trg
+
+# =============================
+# 5. Get DataLoader
+# =============================
+def get_loader(src_path, trg_path, batch_size=32, shuffle=True, src_vocab=None, trg_vocab=None):
+    """
+    Trả về DataLoader và Dataset
+    - batch đã được padding sẵn
+    - vocab riêng cho EN và FR
+    """
+    dataset = TranslationDataset(src_path, trg_path, tokenize_en, tokenize_fr, src_vocab, trg_vocab)
+    loader = DataLoader(dataset, batch_size=batch_size, shuffle=shuffle, collate_fn=MyCollate(dataset.pad_idx))
+    return loader, dataset
+
+# =============================
+# 6. Save/Load utilities (pkl, pt - pickle, pytorch)
+# =============================
+"""
+File .pkl chứa object vocab (dict từ <token> → index)
+File .pt chứa dataset đã tokenize & numericalize → sẵn sàng cho DataLoader
+Với PyTorch dataset chứa tensor: dùng .pt và torch.load.
+.pkl, chỉ lưu dữ liệu numericalized thuần (list of list of ints), không lưu cả object Dataset.
+"""
+
+def save_vocab(vocab, path):
+    with open(path, "wb") as f:
+        pickle.dump(vocab, f)
+
+def load_vocab(path):
+    with open(path, "rb") as f:
+        return pickle.load(f)
+
+def save_dataset(dataset, path):
+    # Lưu toàn bộ object Dataset dưới dạng .pt
+    torch.save(dataset, path)
+
+# def load_dataset(path):
+#     return torch.load(path)
+
+def load_dataset(path):
+    # Allowlist class custom để load an toàn
+    with torch.serialization.safe_globals([TranslationDataset]):
+        # weights_only=False để load toàn bộ object, không chỉ weights
+        return torch.load(path, weights_only=False)
+
+# # src/data.py
+# def load_dataset(path):
+#     from .dataset import TranslationDataset  # import class custom
+#     with torch.serialization.safe_globals([TranslationDataset]):
+#         return torch.load(path)
+
+
+# =============================
+# 7. Example usage
+# =============================
+if __name__ == "__main__":
+    # Tạo DataLoader và lưu dataset + vocab
+    train_loader, train_dataset = get_loader("data/train.en.gz", "data/train.fr.gz", batch_size=32)
+    
+    # Lưu vocab để sử dụng cho train/validation/test sau này
+    save_vocab(train_dataset.src_vocab, "data/vocab_en.pkl")
+    save_vocab(train_dataset.trg_vocab, "data/vocab_fr.pkl")
+    
+    # Lưu dataset đã tokenize và numericalize
+    save_dataset(train_dataset, "data/train_dataset.pt")
+    print("✅ DataLoader, vocab, dataset đã được tạo và lưu xong.")
+    
+    """
+    Giải thích:
+        Tokenizer: Chuẩn hóa text → lowercase + tách từ bằng spaCy
+        Vocab: Tạo riêng cho EN & FR, giới hạn 10.000 từ phổ biến, thêm token đặc biệt <pad>, <sos>, <eos>, <unk>
+        Dataset: Chứa câu đã token, numericalize, thêm <sos>/<eos>
+        Collate function: Padding batch, trả về tensor đồng bộ độ dài → sẵn sàng cho Encoder–Decoder
+        DataLoader: Sinh batch để train
+        Save/Load: Tạo file .pkl cho vocab và .pt cho dataset, dùng lại ở train_data.py
+        Example usage: Chạy file này 1 lần để generate các file cần thiết → không cần build vocab mỗi lần train
+    """
+
