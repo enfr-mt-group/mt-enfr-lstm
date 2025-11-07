@@ -169,21 +169,11 @@ def save_dataset(dataset, path):
     # Lưu toàn bộ object Dataset dưới dạng .pt
     torch.save(dataset, path)
 
-# def load_dataset(path):
-#     return torch.load(path)
-
 def load_dataset(path):
     # Allowlist class custom để load an toàn
     with torch.serialization.safe_globals([TranslationDataset]):
         # weights_only=False để load toàn bộ object, không chỉ weights
         return torch.load(path, weights_only=False)
-
-# # src/data.py
-# def load_dataset(path):
-#     from .dataset import TranslationDataset  # import class custom
-#     with torch.serialization.safe_globals([TranslationDataset]):
-#         return torch.load(path)
-
 
 # =============================
 # 7. Example usage

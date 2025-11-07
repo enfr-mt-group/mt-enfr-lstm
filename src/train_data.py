@@ -32,7 +32,7 @@ EMBED_SIZE = 256
 HIDDEN_SIZE = 512
 NUM_LAYERS = 1
 LEARNING_RATE = 0.001
-NUM_EPOCHS = 10
+NUM_EPOCHS = 1
 TEACHER_FORCING_RATIO = 0.5
 DEVICE = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
@@ -156,3 +156,85 @@ plt.ylabel("Loss")
 plt.title("Training Loss")
 plt.grid(True)
 plt.show()
+
+# =============================
+# 9. Translation (Inference)
+# =============================
+
+from torchtext.data.metrics import bleu_score
+
+def translate_sentence(sentence, src_vocab, trg_vocab, model, device, max_len=50):
+    """
+    Dịch 1 câu tiếng Anh sang tiếng Pháp
+    """
+    model.eval()
+    tokens = ["<sos>"] + sentence.lower().split() + ["<eos>"]
+
+    # convert tokens → indices
+    src_indexes = [src_vocab.stoi.get(tok, src_vocab.stoi["<unk>"]) for tok in tokens]
+    src_tensor = torch.LongTensor(src_indexes).unsqueeze(0).to(device)
+
+    with torch.no_grad():
+        hidden, cell = model.encoder(src_tensor)
+
+    trg_indexes = [trg_vocab.stoi["<sos>"]]
+
+    for i in range(max_len):
+        trg_tensor = torch.LongTensor([trg_indexes[-1]]).to(device)
+        with torch.no_grad():
+            output, hidden, cell = model.decoder(trg_tensor, hidden, cell)
+            pred_token = output.argmax(1).item()
+
+        trg_indexes.append(pred_token)
+
+        if pred_token == trg_vocab.stoi["<eos>"]:
+            break
+
+    trg_tokens = [trg_vocab.itos[i] for i in trg_indexes]
+    return " ".join(trg_tokens[1:-1])  # bỏ <sos> và <eos>
+
+
+# =============================
+# 10. Evaluation – BLEU Score
+# =============================
+
+def calculate_bleu_score(dataloader, model, src_vocab, trg_vocab, device, n_samples=50):
+    """
+    Tính BLEU score trung bình trên n câu test ngẫu nhiên
+    """
+    model.eval()
+    preds, targets = [], []
+    count = 0
+
+    for src, trg in dataloader:
+        src, trg = src.to(device), trg.to(device)
+        for i in range(src.shape[0]):
+            src_tokens = [src_vocab.itos[idx] for idx in src[i].cpu().numpy() if idx not in [src_vocab.stoi["<pad>"], src_vocab.stoi["<sos>"], src_vocab.stoi["<eos>"]]]
+            trg_tokens = [trg_vocab.itos[idx] for idx in trg[i].cpu().numpy() if idx not in [trg_vocab.stoi["<pad>"], trg_vocab.stoi["<sos>"], trg_vocab.stoi["<eos>"]]]
+            src_sentence = " ".join(src_tokens)
+            pred = translate_sentence(src_sentence, src_vocab, trg_vocab, model, device)
+            preds.append(pred.split())
+            targets.append([trg_tokens])
+            count += 1
+            if count >= n_samples:
+                break
+        if count >= n_samples:
+            break
+
+    bleu = bleu_score(preds, targets)
+    print(f"BLEU score (trên {n_samples} mẫu): {bleu*100:.2f}")
+    return bleu
+
+
+# =============================
+# 11. Chạy thử dịch và đánh giá
+# =============================
+
+# Ví dụ dịch một câu tiếng Anh
+example = "i am a student"
+translated = translate_sentence(example, src_vocab, trg_vocab, model, DEVICE)
+print(f"\n🔹 English: {example}")
+print(f"🔸 French: {translated}\n")
+
+# Tính BLEU score trung bình
+calculate_bleu_score(train_loader, model, src_vocab, trg_vocab, DEVICE, n_samples=30)
