@@ -23,6 +23,8 @@ from torch.utils.data import DataLoader
 import matplotlib.pyplot as plt
 from data import load_dataset, load_vocab, MyCollate
 from data import TranslationDataset  # dùng khi tạo DataLoader
+from torch.nn.utils.rnn import pack_padded_sequence, pad_packed_sequence
+
 
 # =============================
 # 1. Hyperparameters
@@ -52,21 +54,30 @@ PAD_IDX = src_vocab.stoi["<pad>"]
 # 3. Encoder
 # =============================
 class Encoder(nn.Module):
-    def __init__(self, input_dim, embed_size, hidden_size, num_layers):
+    def __init__(self, input_dim, embed_size, hidden_size, num_layers, pad_idx=PAD_IDX):
         super().__init__()
         self.embedding = nn.Embedding(input_dim, embed_size, padding_idx=PAD_IDX)
         self.lstm = nn.LSTM(embed_size, hidden_size, num_layers, batch_first=True)
 
-    def forward(self, x):
+    def forward(self, x, lengths=None):
+        #  x: (batch, seq_len)
         embedded = self.embedding(x)
-        outputs, (hidden, cell) = self.lstm(embedded)
+        # packed = pack_padded_sequence(embedded, lengths.cpu(), batch_first=True, enforce_sorted=False)
+        # outputs, (hidden, cell) = self.lstm(packed)
+        if lengths is not None:
+            packed = pack_padded_sequence(embedded, lengths.cpu(), batch_first=True, enforce_sorted=True)
+            packed_outputs, (hidden, cell) = self.lstm(packed)
+            outputs, _ = pad_packed_sequence(packed_outputs, batch_first=True)  # (batch, seq_len, hidden)
+        else:
+            outputs, (hidden, cell) = self.lstm(embedded)
+        
         return hidden, cell
 
 # =============================
 # 4. Decoder
 # =============================
 class Decoder(nn.Module):
-    def __init__(self, output_dim, embed_size, hidden_size, num_layers):
+    def __init__(self, output_dim, embed_size, hidden_size, num_layers, pad_idx=PAD_IDX):
         super().__init__()
         self.embedding = nn.Embedding(output_dim, embed_size, padding_idx=PAD_IDX)
         self.lstm = nn.LSTM(embed_size, hidden_size, num_layers, batch_first=True)
@@ -83,20 +94,21 @@ class Decoder(nn.Module):
 # 5. Seq2Seq
 # =============================
 class Seq2Seq(nn.Module):
-    def __init__(self, encoder, decoder, device):
+    def __init__(self, encoder, decoder, device, trg_vocab_size):
         super().__init__()
         self.encoder = encoder
         self.decoder = decoder
         self.device = device
+        self.trg_vocab_size = trg_vocab_size
 
-    def forward(self, src, trg, teacher_forcing_ratio=0.5):
+    def forward(self, src, trg, src_lengths, teacher_forcing_ratio=0.5):
         batch_size = src.shape[0]
         trg_len = trg.shape[1]
-        trg_vocab_size = len(trg_vocab.stoi)
+        trg_vocab_size = self.trg_vocab_size
 
         outputs = torch.zeros(batch_size, trg_len, trg_vocab_size).to(self.device)
 
-        hidden, cell = self.encoder(src)
+        hidden, cell = self.encoder(src, lengths=src_lengths)
         input = trg[:,0]  # <sos>
 
         for t in range(1, trg_len):
@@ -111,9 +123,10 @@ class Seq2Seq(nn.Module):
 # =============================
 # 6. Initialize model + optimizer + loss
 # =============================
-encoder = Encoder(len(src_vocab.stoi), EMBED_SIZE, HIDDEN_SIZE, NUM_LAYERS).to(DEVICE)
-decoder = Decoder(len(trg_vocab.stoi), EMBED_SIZE, HIDDEN_SIZE, NUM_LAYERS).to(DEVICE)
-model = Seq2Seq(encoder, decoder, DEVICE).to(DEVICE)
+PAD_IDX = src_vocab.stoi["<pad>"]
+encoder = Encoder(len(src_vocab.stoi), EMBED_SIZE, HIDDEN_SIZE, NUM_LAYERS, pad_idx=PAD_IDX).to(DEVICE)
+decoder = Decoder(len(trg_vocab.stoi), EMBED_SIZE, HIDDEN_SIZE, NUM_LAYERS, pad_idx=PAD_IDX).to(DEVICE)
+model = Seq2Seq(encoder, decoder, DEVICE, trg_vocab_size=len(trg_vocab.stoi)).to(DEVICE)
 
 optimizer = optim.Adam(model.parameters(), lr=LEARNING_RATE)
 criterion = nn.CrossEntropyLoss(ignore_index=PAD_IDX)
@@ -126,10 +139,11 @@ loss_list = []
 for epoch in range(NUM_EPOCHS):
     model.train()
     epoch_loss = 0
-    for src, trg in train_loader:
-        src, trg = src.to(DEVICE), trg.to(DEVICE)
+    for src, trg, src_lengths, trg_lengths_ in train_loader: 
+        src, trg, src_lengths = src.to(DEVICE), trg.to(DEVICE), src_lengths.to(DEVICE)
         optimizer.zero_grad()
-        output = model(src, trg, teacher_forcing_ratio=TEACHER_FORCING_RATIO)
+        
+        output = model(src, trg, src_lengths, teacher_forcing_ratio=TEACHER_FORCING_RATIO)
 
         # reshape for loss: (batch*seq_len, vocab_size)
         output_dim = output.shape[-1]

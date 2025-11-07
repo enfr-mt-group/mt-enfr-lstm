@@ -9,6 +9,7 @@ from collections import Counter
 from tqdm import tqdm
 import spacy
 
+
 # =============================
 # 1. Tokenizer
 # =============================
@@ -128,11 +129,35 @@ class MyCollate:
         self.pad_idx = pad_idx
 
     def __call__(self, batch):
-        src = [item[0] for item in batch]
+        src = [item[0] for item in batch] # list of tensors (variable length)
         trg = [item[1] for item in batch]
-        src = pad_sequence(src, batch_first=True, padding_value=self.pad_idx)
-        trg = pad_sequence(trg, batch_first=True, padding_value=self.pad_idx)
-        return src, trg
+        
+        # padding
+        src_padded = pad_sequence(src, batch_first=True, padding_value=self.pad_idx)
+        trg_padded = pad_sequence(trg, batch_first=True, padding_value=self.pad_idx)
+        
+        # tính độ dài (số token không phải pad)
+        # src_lengths = [len(sent) for sent in src]
+        # trg_lengths = [len(sent) for sent in trg]
+        
+        # compute lengths BEFORE padding (true lengths)
+        src_lengths = torch.tensor([s.size(0) for s in src], dtype=torch.long)
+        trg_lengths = torch.tensor([t.size(0) for t in trg], dtype=torch.long)
+        
+        #sắp xếp theo độ dài giảm dần (nếu cần thiết cho RNN)
+        # src_lengths, src_perm_idx = torch.tensor(src_lengths).sort(0, descending=True )
+        # trg_lengths, trg_perm_idx = torch.tensor(trg_lengths).sort(0, descending=True )
+        # src_padded = src[src_perm_idx]
+        # trg_padded = trg[trg_perm_idx] 
+        
+         # sort by src length descending (so we can pack if needed)
+        src_lengths_sorted, perm_idx = src_lengths.sort(0, descending=True)
+        src_padded = src_padded[perm_idx]
+        trg_padded = trg_padded[perm_idx]
+        trg_lengths_sorted = trg_lengths[perm_idx]
+
+        # trả về batch đã padding và độ dài
+        return src_padded, trg_padded, src_lengths_sorted
 
 # =============================
 # 5. Get DataLoader
