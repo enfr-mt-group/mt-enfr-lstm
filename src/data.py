@@ -157,7 +157,7 @@ class MyCollate:
         trg_lengths_sorted = trg_lengths[perm_idx]
 
         # trả về batch đã padding và độ dài
-        return src_padded, trg_padded, src_lengths_sorted
+        return src_padded, trg_padded, src_lengths_sorted, trg_lengths_sorted
 
 # =============================
 # 5. Get DataLoader

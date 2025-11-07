@@ -24,18 +24,31 @@ import matplotlib.pyplot as plt
 from data import load_dataset, load_vocab, MyCollate
 from data import TranslationDataset  # dùng khi tạo DataLoader
 from torch.nn.utils.rnn import pack_padded_sequence, pad_packed_sequence
+import argparse
 
 
 # =============================
 # 1. Hyperparameters
+# Parse command line arguments
 # =============================
-BATCH_SIZE = 32
-EMBED_SIZE = 256
-HIDDEN_SIZE = 512
-NUM_LAYERS = 1
-LEARNING_RATE = 0.001
-NUM_EPOCHS = 10
-TEACHER_FORCING_RATIO = 0.5
+parser = argparse.ArgumentParser()
+parser.add_argument("--num_epochs", type=int, default=10)
+parser.add_argument("--batch_size", type=int, default=32)
+parser.add_argument("--embed_size", type=int, default=256)
+parser.add_argument("--hidden_size", type=int, default=512)
+parser.add_argument("--num_layers", type=int, default=2)
+parser.add_argument("--learning_rate", type=float, default=0.001)
+parser.add_argument("--teacher_forcing_ratio", type=float, default=0.5)
+args = parser.parse_args()
+
+BATCH_SIZE = args.batch_size
+EMBED_SIZE = args.embed_size
+HIDDEN_SIZE = args.hidden_size
+NUM_LAYERS = args.num_layers
+NUM_EPOCHS = args.num_epochs
+LEARNING_RATE = args.learning_rate
+# NUM_EPOCHS = 10
+TEACHER_FORCING_RATIO = args.teacher_forcing_ratio
 DEVICE = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
 # =============================
