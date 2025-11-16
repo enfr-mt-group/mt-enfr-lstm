@@ -16,7 +16,7 @@ from dataset import TranslationDataset, Vocab, load_dataset, load_vocab, MyColla
 # 1. Hyperparameters
 # =============================
 parser = argparse.ArgumentParser()
-parser.add_argument("--num_epochs", type=int, default=1)
+parser.add_argument("--num_epochs", type=int, default=10)
 parser.add_argument("--batch_size", type=int, default=32)
 parser.add_argument("--embed_size", type=int, default=256)
 parser.add_argument("--hidden_size", type=int, default=512)
