@@ -115,43 +115,47 @@ class TranslationDataset(Dataset):
         trg = [self.trg_vocab.stoi["<sos>"]] + self.trg_vocab.numericalize(self.trg_sentences[idx]) + [self.trg_vocab.stoi["<eos>"]]
         return torch.tensor(src), torch.tensor(trg)
 
-# ==============================
-# 4. Collate function (padding + pack_padded_sequence)
-# ==============================
-
+# =============================
+# 4. Collate function (padding)
+# =============================
 class MyCollate:
     """
-    Collate function cho DataLoader
-    - Padding batch để đồng bộ độ dài
-    - Trả về PackedSequence cho encoder LSTM
-    - Trả về trg_padded bình thường cho decoder
+    Padding batch để đồng bộ độ dài
+    - dùng cho DataLoader
     """
     def __init__(self, pad_idx):
         self.pad_idx = pad_idx
 
     def __call__(self, batch):
-        # tách src và trg
-        src = [item[0] for item in batch]  # list of tensors (variable length)
+        src = [item[0] for item in batch] # list of tensors (variable length)
         trg = [item[1] for item in batch]
-
+        
         # padding
         src_padded = pad_sequence(src, batch_first=True, padding_value=self.pad_idx)
         trg_padded = pad_sequence(trg, batch_first=True, padding_value=self.pad_idx)
-
-        # độ dài gốc (trước padding)
+        
+        # tính độ dài (số token không phải pad)
+        # src_lengths = [len(sent) for sent in src]
+        # trg_lengths = [len(sent) for sent in trg]
+        
+        # compute lengths BEFORE padding (true lengths)
         src_lengths = torch.tensor([s.size(0) for s in src], dtype=torch.long)
         trg_lengths = torch.tensor([t.size(0) for t in trg], dtype=torch.long)
-
-        # sắp xếp batch theo độ dài giảm dần
+        
+        #sắp xếp theo độ dài giảm dần (nếu cần thiết cho RNN)
+        # src_lengths, src_perm_idx = torch.tensor(src_lengths).sort(0, descending=True )
+        # trg_lengths, trg_perm_idx = torch.tensor(trg_lengths).sort(0, descending=True )
+        # src_padded = src[src_perm_idx]
+        # trg_padded = trg[trg_perm_idx] 
+        
+         # sort by src length descending (so we can pack if needed)
         src_lengths_sorted, perm_idx = src_lengths.sort(0, descending=True)
         src_padded = src_padded[perm_idx]
         trg_padded = trg_padded[perm_idx]
         trg_lengths_sorted = trg_lengths[perm_idx]
 
-        # pack_ready cho LSTM Encoder
-        packed_src = pack_padded_sequence(src_padded, src_lengths_sorted.cpu(), batch_first=True, enforce_sorted=True)
-
-        return packed_src, trg_padded, src_lengths_sorted, trg_lengths_sorted
+        # trả về batch đã padding và độ dài
+        return src_padded, trg_padded, src_lengths_sorted, trg_lengths_sorted
 
 # =============================
 # 5. Get DataLoader
@@ -192,11 +196,7 @@ def save_dataset(dataset, path):
 #     return torch.load(path)
 
 def load_dataset(path):
-    # Allowlist class custom để load an toàn
-    with torch.serialization.safe_globals([TranslationDataset]):
-        # weights_only=False để load toàn bộ object, không chỉ weights
-        return torch.load(path, weights_only=False)
-
+   return torch.load(path)
 # # src/data.py
 # def load_dataset(path):
 #     from .dataset import TranslationDataset  # import class custom
