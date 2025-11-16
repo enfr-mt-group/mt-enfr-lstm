@@ -196,7 +196,15 @@ def save_dataset(dataset, path):
 #     return torch.load(path)
 
 def load_dataset(path):
-   return torch.load(path)
+    """
+    Load dataset chứa class custom TranslationDataset
+    Dùng PyTorch >=2.6
+    """
+  # chắc chắn import class trước khi load
+    # weights_only=False để cho phép load cả object (không chỉ weights)
+    dataset = torch.load(path, weights_only=False)
+    return dataset
+
 # # src/data.py
 # def load_dataset(path):
 #     from .dataset import TranslationDataset  # import class custom
