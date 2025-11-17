@@ -1,4 +1,4 @@
-# src/train.py
+# src/model.py
 import os
 import torch
 import torch.nn as nn
@@ -282,53 +282,109 @@ plt.legend()
 plt.grid(True)
 plt.show()
 
+# ----------------------------
+# Simple detokenizer
+# ----------------------------
+def detokenize(tokens):
+    """Xóa space trước dấu câu, tránh lỗi spacing."""
+    sentence = " ".join(tokens)
+    sentence = sentence.replace(" ,", ",")
+    sentence = sentence.replace(" .", ".")
+    sentence = sentence.replace(" !", "!")
+    sentence = sentence.replace(" ?", "?")
+    sentence = sentence.replace(" ;", ";")
+    sentence = sentence.replace(" :", ":")
+    return sentence
+
 # =============================
 # 9. Translate & BLEU utilities
 # =============================
 def translate(sentence, model, src_vocab, trg_vocab, device, max_len=50):
     model.eval()
+    # ---- 1. Tokenize English sentence ----
     tokens = tokenize_en(sentence)
-    indices = [src_vocab.stoi.get("<sos>", 1)] + [src_vocab.stoi.get(t, UNK_SRC) for t in tokens] + [src_vocab.stoi.get("<eos>", 2)]
+    indices = [src_vocab.stoi.get("<sos>", 1)] + \
+              [src_vocab.stoi.get(t, src_vocab.stoi["<unk>"]) for t in tokens] + \
+              [src_vocab.stoi.get("<eos>", 2)]
+    # ---- 2. Convert to tensor ----
     src_tensor = torch.tensor(indices, dtype=torch.long, device=device).unsqueeze(0)
     src_len = torch.tensor([len(indices)], dtype=torch.long, device=device)
-
+    # ---- 3. Encode ----
     with torch.no_grad():
         hidden, cell = model.encoder(src_tensor, lengths=src_len)
-        input_tok = torch.tensor([trg_vocab.stoi["<sos>"]], device=device)
-        out_tokens = []
-        for _ in range(max_len):
-            preds, hidden, cell = model.decoder(input_tok, hidden, cell)
-            top1 = preds.argmax(1)
-            tok = top1.item()
-            if tok == trg_vocab.stoi.get("<eos>"):
-                break
-            out_tokens.append(tok)
-            input_tok = top1
-    words = [trg_vocab.itos[idx] for idx in out_tokens]
-    return " ".join(words)
+    # ---- 4. Decode ----
+    trg_indices = []
+    cur_tok = trg_vocab.stoi["<sos>"]
+    for _ in range(max_len):
+        cur_tensor = torch.tensor([cur_tok], dtype=torch.long, device=device)
+        with torch.no_grad():
+            output, hidden, cell = model.decoder(cur_tensor, hidden, cell)
+            # greedy: pick highest prob
+            top1 = output.argmax(1).item()
+        if top1 == trg_vocab.stoi["<eos>"]:
+            break
+        trg_indices.append(top1)
+        cur_tok = top1
+    # ---- 5. Convert indices → words ----
+    trg_tokens = [trg_vocab.itos[idx] for idx in trg_indices]
+    return detokenize(trg_tokens)
+
 
 def evaluate_bleu(model, dataset, src_vocab, trg_vocab, device, n_examples=5):
-    from nltk.translate.bleu_score import sentence_bleu
-    import random
     model.eval()
-    total = 0.0
+    smoothie = SmoothingFunction().method4
+
+    sentence_scores = []
+    refs = []  # for corpus BLEU
+    hyps = []
+
     for i in range(len(dataset)):
         src_tensor, trg_tensor = dataset[i]
-        src_sentence = " ".join([src_vocab.itos[i.item()] for i in src_tensor[1:-1]])
-        pred = translate(src_sentence, model, src_vocab, trg_vocab, device)
-        pred_tokens = pred.split()
-        trg_tokens = [trg_vocab.itos[i.item()] for i in trg_tensor[1:-1]]
-        total += sentence_bleu([trg_tokens], pred_tokens, weights=(0.5, 0.5))
-    avg = total / len(dataset)
-    print("Avg BLEU:", avg)
-    # print some examples
+
+        # Convert source to text
+        src_sentence = " ".join([src_vocab.itos[idx.item()] for idx in src_tensor[1:-1]])
+
+        # Predict
+        pred_sentence = translate(src_sentence, model, src_vocab, trg_vocab, device)
+        pred_tokens = pred_sentence.split()
+
+        # Target tokens
+        trg_tokens = [trg_vocab.itos[idx.item()] for idx in trg_tensor[1:-1]]
+
+        # Store for corpus BLEU
+        refs.append([trg_tokens])
+        hyps.append(pred_tokens)
+
+        # Sentence BLEU (smoothed, BLEU-4)
+        score = sentence_bleu(
+            [trg_tokens],
+            pred_tokens,
+            weights=(0.25, 0.25, 0.25, 0.25),
+            smoothing_function=smoothie
+        )
+        sentence_scores.append(score)
+
+    # ---- Average sentence BLEU ----
+    avg_sentence_bleu = sum(sentence_scores) / len(sentence_scores)
+
+    # ---- Corpus BLEU ----
+    corpus_score = corpus_bleu(refs, hyps)
+
+    print(f"\n==== BLEU Evaluation ====")
+    print(f"Avg sentence BLEU-4 (smoothed): {avg_sentence_bleu:.4f}")
+    print(f"Corpus BLEU-4: {corpus_score:.4f}\n")
+
+    # ---- Print examples ----
+    print("===== Examples =====")
+    import random
     for _ in range(min(n_examples, len(dataset))):
         i = random.randint(0, len(dataset)-1)
         src_tensor, trg_tensor = dataset[i]
-        src_sentence = " ".join([src_vocab.itos[i.item()] for i in src_tensor[1:-1]])
-        print("EN:", src_sentence)
-        print("GT:", " ".join([trg_vocab.itos[i.item()] for i in trg_tensor[1:-1]]))
-        print("PRED:", translate(src_sentence, model, src_vocab, trg_vocab, device))
+        src_sentence = " ".join([src_vocab.itos[idx.item()] for idx in src_tensor[1:-1]])
+
+        print("EN:   ", src_sentence)
+        print("GT:   ", " ".join([trg_vocab.itos[idx.item()] for idx in trg_tensor[1:-1]]))
+        print("PRED: ", translate(src_sentence, model, src_vocab, trg_vocab, device))
         print("-"*40)
 
 # optionally evaluate with best model
