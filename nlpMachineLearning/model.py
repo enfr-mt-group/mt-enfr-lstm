@@ -211,24 +211,28 @@ scheduler = optim.lr_scheduler.ReduceLROnPlateau(optimizer, mode="min", factor=0
 os.makedirs("/kaggle/working/checkpoints", exist_ok=True)
 
 # =============================
-# 7. Train + Validate (with early stopping)
+# 7. Train + Validate (BLEU early stopping + keep losses)
 # =============================
+
 train_losses = []
 val_losses = []
-best_val = float("inf")
+bleu_scores = []
+
+best_bleu = 0.0
 no_improve = 0
 
 for epoch in range(NUM_EPOCHS):
+    # ===== TRAINING =====
     model.train()
     epoch_loss = 0.0
+
     for src, trg, src_lengths, trg_lengths in train_loader:
         src, trg, src_lengths = src.to(DEVICE), trg.to(DEVICE), src_lengths.to(DEVICE)
 
         optimizer.zero_grad()
         outputs = model(src, trg, src_lengths, teacher_forcing_ratio=TEACHER_FORCING_RATIO)
-        output_dim = outputs.shape[-1]
 
-        # compute loss (ignore first token <sos>)
+        output_dim = outputs.shape[-1]
         logits = outputs[:, 1:, :].reshape(-1, output_dim)
         targets = trg[:, 1:].reshape(-1).to(DEVICE)
 
@@ -240,35 +244,46 @@ for epoch in range(NUM_EPOCHS):
     train_loss = epoch_loss / len(train_loader)
     train_losses.append(train_loss)
 
-    # validation
+    # ===== VALIDATION LOSS =====
     model.eval()
     val_loss = 0.0
     with torch.no_grad():
         for src, trg, src_lengths, trg_lengths in val_loader:
             src, trg, src_lengths = src.to(DEVICE), trg.to(DEVICE), src_lengths.to(DEVICE)
-            outputs = model(src, trg, src_lengths, teacher_forcing_ratio=0.0)  # no teacher forcing
+            outputs = model(src, trg, src_lengths, teacher_forcing_ratio=0.0)
+
             logits = outputs[:, 1:, :].reshape(-1, outputs.shape[-1])
             targets = trg[:, 1:].reshape(-1).to(DEVICE)
-            loss = criterion(logits, targets)
-            val_loss += loss.item()
-    val_loss = val_loss / len(val_loader)
+            val_loss += criterion(logits, targets).item()
+
+    val_loss /= len(val_loader)
     val_losses.append(val_loss)
 
-    # scheduler step
+    # ===== COMPUTE BLEU =====
+    bleu_score = compute_bleu(model, val_dataset, src_vocab, trg_vocab, DEVICE)
+    bleu_scores.append(bleu_score)
+
+    # Print logs
+    print(
+        f"Epoch {epoch+1}/{NUM_EPOCHS} "
+        f"| train_loss={train_loss:.4f} "
+        f"| val_loss={val_loss:.4f} "
+        f"| BLEU={bleu_score:.4f}"
+    )
+
+    # Scheduler vẫn dùng val_loss
     scheduler.step(val_loss)
 
-    print(f"Epoch {epoch+1}/{NUM_EPOCHS} — train_loss: {train_loss:.4f} | val_loss: {val_loss:.4f}")
-
-    # early stopping & save best
-    if val_loss < best_val - 1e-4:
-        best_val = val_loss
+    # ===== EARLY STOP = BLEU =====
+    if bleu_score > best_bleu + 1e-4:
+        best_bleu = bleu_score
         no_improve = 0
-        torch.save(model.state_dict(), f"/kaggle/working/checkpoints/seq2seq_best.pth")
-        print("Saved best model.")
+        torch.save(model.state_dict(), "/kaggle/working/checkpoints/seq2seq_best.pth")
+        print(f"✔ Saved best model (BLEU={bleu_score:.4f})")
     else:
         no_improve += 1
         if no_improve >= PATIENCE:
-            print(f"Early stopping (no improvement for {PATIENCE} epochs).")
+            print(f"🔥 Early stopping by BLEU (no improvement for {PATIENCE} epochs)")
             break
 
 # =============================
