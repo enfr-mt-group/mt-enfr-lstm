@@ -1,4 +1,8 @@
 import math
+from nltk.translate.bleu_score import sentence_bleu, SmoothingFunction
+import matplotlib.pyplot as plt
+import torch.nn as nn
+import torch.optim as optim
 
 def calculate_perplexity(model, dataloader, pad_idx, device="cuda"):
     """
