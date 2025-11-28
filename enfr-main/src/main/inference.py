@@ -43,9 +43,3 @@ def translate(sentence, model, src_vocab, trg_vocab, src_tokenizer, max_len=50):
 
     translated_sentence = " ".join(trg_tokens)
     return translated_sentence
-
-
-sentence_en = "I love natural language processing."
-translated_fr = translate(sentence_en, model, dataset.src_vocab, dataset.trg_vocab, tokenize_en)
-print(translated_fr)
-

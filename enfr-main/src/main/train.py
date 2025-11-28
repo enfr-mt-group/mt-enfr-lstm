@@ -106,21 +106,3 @@ def train_model(model, train_loader, val_loader, pad_idx,
                 break
 
     print("Training complete. Best Val Loss: {:.4f}".format(best_val_loss))
-
-# Giả sử bạn đã có:
-# train_loader, val_loader (DataLoader)
-# pad_idx = dataset.src_vocab.stoi["<pad>"] hoặc trg_vocab
-
-model.to(device)
-
-train_model(
-    model,
-    train_loader=train_loader,
-    val_loader=val_loader,
-    pad_idx=dataset.trg_vocab.stoi["<pad>"],
-    n_epochs=20,
-    lr=0.001,
-    teacher_forcing_ratio=0.5,
-    save_path="best_seq2seq.pt"
-)
-

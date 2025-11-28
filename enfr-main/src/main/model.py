@@ -90,11 +90,3 @@ class Seq2Seq(nn.Module):
             input_token = trg[:, t] if use_teacher else output.argmax(1)
 
         return outputs
-
-INPUT_DIM = len(vocab_en)     # số từ điển EN
-OUTPUT_DIM = len(vocab_fr)    # số từ điển FR
-
-enc = Encoder(INPUT_DIM, embed_dim=256, hidden_dim=512, num_layers=2, dropout=0.3)
-dec = Decoder(OUTPUT_DIM, embed_dim=256, hidden_dim=512, num_layers=2, dropout=0.3)
-
-model = Seq2Seq(enc, dec, device="cuda", teacher_forcing_ratio=0.5)

@@ -94,14 +94,3 @@ def evaluate_with_metrics(model, dataloader, src_vocab, trg_vocab, src_tokenizer
     plt.show()
 
     return avg_bleu, ppl, bleu_scores, examples
-
-avg_bleu, ppl, bleu_scores, examples = evaluate_with_metrics(
-    model=model,
-    dataloader=test_loader,
-    src_vocab=dataset.src_vocab,
-    trg_vocab=dataset.trg_vocab,
-    src_tokenizer=tokenize_en,
-    trg_tokenizer=tokenize_fr,
-    pad_idx=dataset.trg_vocab.stoi["<pad>"],
-    device="cuda"
-)

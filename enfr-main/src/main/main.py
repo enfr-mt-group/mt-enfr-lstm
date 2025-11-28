@@ -14,7 +14,7 @@ from evaluate import evaluate_with_metrics
 # ===========================================
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 BATCH_SIZE = 32
-N_EPOCHS = 20
+N_EPOCHS = 1
 LR = 0.001
 TEACHER_FORCING_RATIO = 0.5
 SAVE_PATH = "best_seq2seq.pt"
