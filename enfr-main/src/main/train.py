@@ -98,7 +98,7 @@ def train_model(model, train_loader, val_loader, pad_idx,
             best_val_loss = val_loss
             torch.save(model.state_dict(), save_path)
             epochs_no_improve = 0
-            print("  ✅ Best model saved")
+            print(" Best model saved")
         else:
             epochs_no_improve += 1
             if epochs_no_improve >= early_stop_patience:
