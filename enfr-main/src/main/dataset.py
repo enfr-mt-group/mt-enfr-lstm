@@ -185,7 +185,7 @@ def get_loader(src_path, trg_path, batch_size=64,
         collate_fn=MyCollate(pad_src, pad_trg)
     )
 
-    return loader, ds
+    return loader, ds.src_vocab, ds.trg_vocab
 
 # =====================================================
 # 6. Save / Load Functions
