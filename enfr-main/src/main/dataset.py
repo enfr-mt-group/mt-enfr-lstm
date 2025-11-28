@@ -168,7 +168,7 @@ class MyCollate:
 
 def get_loader(src_path, trg_path, batch_size=64,
                src_tokenizer=tokenize_en, trg_tokenizer=tokenize_fr,
-               src_vocab=None, trg_vocab=None, shuffle=True):
+               src_vocab=None, trg_vocab=None, shuffle=False):
 
     ds = TranslationDataset(src_path, trg_path,
                             src_tokenizer, trg_tokenizer,
@@ -185,3 +185,41 @@ def get_loader(src_path, trg_path, batch_size=64,
     )
 
     return loader, ds.src_vocab, ds.trg_vocab
+
+# =====================================================
+# 6. Save / Load Functions
+# =====================================================
+
+def save_vocab(vocab, path):
+    with open(path, "wb") as f:
+        pickle.dump(vocab, f)
+
+def load_vocab(path):
+    with open(path, "rb") as f:
+        return pickle.load(f)
+
+def save_dataset(dataset, path):
+    torch.save(dataset, path)
+
+def load_dataset(path):
+    return torch.load(path)
+
+
+# =====================================================
+# 7. Example usage (Kaggle)
+# =====================================================
+
+if __name__ == "__main__":
+    TRAIN_EN = "/kaggle/input/englishfrance/train.en"
+    TRAIN_FR = "/kaggle/input/englishfrance/train.fr"
+
+    loader, dataset = get_loader(TRAIN_EN, TRAIN_FR, batch_size=32)
+
+    os.makedirs("/kaggle/working/data", exist_ok=True)
+
+    save_vocab(dataset.src_vocab, "/kaggle/working/data/vocab_en.pkl")
+    save_vocab(dataset.trg_vocab, "/kaggle/working/data/vocab_fr.pkl")
+
+    save_dataset(dataset, "/kaggle/working/data/train_dataset.pt")
+
+    print("✅ Saved vocab + dataset → /kaggle/working/data/")
