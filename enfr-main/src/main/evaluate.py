@@ -94,6 +94,9 @@ def evaluate_with_metrics(model, dataloader, src_vocab, trg_vocab, src_tokenizer
     plt.bar(["Perplexity"], [ppl], color="salmon")
     plt.title("Perplexity")
     plt.ylabel("PPL")
+
+    plt.tight_layout()
+    plt.savefig("evaluation.png")
     plt.show()
 
     return avg_bleu, ppl, bleu_scores, examples
