@@ -1,4 +1,5 @@
 import os
+import csv
 import torch
 import argparse
 from torch.utils.data import random_split
@@ -8,23 +9,21 @@ from train import train_model
 from inference import translate
 from evaluate import evaluate_with_metrics
 
-# ===========================================
-# 1. ARGPARSE
-# ===========================================
+# 1. Tham số thực nghiệm
 parser = argparse.ArgumentParser(description="Seq2Seq EN->FR Translation Training")
 
 # Basic args
-parser.add_argument("--batch_size", type=int, default=32, help="Batch size")
-parser.add_argument("--n_epochs", type=int, default=1, help="Number of epochs")
-parser.add_argument("--lr", type=float, default=0.001, help="Learning rate")
-parser.add_argument("--teacher_forcing_ratio", type=float, default=0.5, help="Teacher forcing ratio")
-parser.add_argument("--save_path", type=str, default="best_seq2seq.pt", help="Path to save model")
+parser.add_argument("--batch_size", type=int, default=32)
+parser.add_argument("--n_epochs", type=int, default=1)
+parser.add_argument("--lr", type=float, default=0.001)
+parser.add_argument("--teacher_forcing_ratio", type=float, default=0.5)
+parser.add_argument("--save_path", type=str, default="best_seq2seq.pt")
 
 # Model args
-parser.add_argument("--embed_dim", type=int, default=256, help="Embedding dimension")
-parser.add_argument("--hidden_dim", type=int, default=512, help="LSTM hidden size")
-parser.add_argument("--num_layers", type=int, default=2, help="Number of LSTM layers")
-parser.add_argument("--dropout", type=float, default=0.3, help="Dropout rate")
+parser.add_argument("--embed_dim", type=int, default=256)
+parser.add_argument("--hidden_dim", type=int, default=512)
+parser.add_argument("--num_layers", type=int, default=2)
+parser.add_argument("--dropout", type=float, default=0.3)
 
 # Experiment preset
 parser.add_argument("--exp", type=str, default=None,
@@ -32,9 +31,7 @@ parser.add_argument("--exp", type=str, default=None,
 
 args = parser.parse_args()
 
-# ===========================================
-# 1.1. EXPERIMENT PRESETS
-# ===========================================
+# 1.1 Kịch bản thực nghiệm
 experiment_presets = {
     "A1": {"embed_dim": 256, "hidden_dim": 256, "num_layers": 1, "dropout": 0.2,
            "batch_size": 32, "lr": 0.001, "teacher_forcing_ratio": 0.5, "n_epochs": 10},
@@ -61,19 +58,16 @@ experiment_presets = {
            "batch_size": 32, "lr": 0.002, "teacher_forcing_ratio": 0.5, "n_epochs": 20},
 }
 
-# ===========================================
-# 1.2. APPLY EXPERIMENT PRESET IF PROVIDED
-# ===========================================
+# 1.2 áp dụng giá trị preset
 if args.exp is not None:
     if args.exp not in experiment_presets:
-        raise ValueError(f"Experiment {args.exp} không tồn tại!")
+        raise ValueError(f"Preset {args.exp} does not exist!")
 
     preset = experiment_presets[args.exp]
 
-    print(f"\n⚙️ Using experiment preset: {args.exp}")
+    print(f"\n⚙️ Using preset: {args.exp}")
     print(preset)
 
-    # Override args
     args.embed_dim = preset["embed_dim"]
     args.hidden_dim = preset["hidden_dim"]
     args.num_layers = preset["num_layers"]
@@ -83,10 +77,7 @@ if args.exp is not None:
     args.teacher_forcing_ratio = preset["teacher_forcing_ratio"]
     args.n_epochs = preset["n_epochs"]
 
-
-# ===========================================
-# 1.3. Assign final variables
-# ===========================================
+# 1.3 Tham số đưa vào mô hình
 BATCH_SIZE = args.batch_size
 N_EPOCHS = args.n_epochs
 LR = args.lr
@@ -99,9 +90,20 @@ DROPOUT = args.dropout
 
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
-# ===========================================
-# 2. DATA PATHS
-# ===========================================
+# hàm lưu thực nghiệm vào CSV
+def log_experiment(csv_path, row):
+    file_exists = os.path.isfile(csv_path)
+    with open(csv_path, "a", newline="", encoding="utf-8") as f:
+        writer = csv.writer(f)
+        if not file_exists:
+            writer.writerow([
+                "exp", "embed", "hidden", "layers", "dropout",
+                "batch", "lr", "teacher_forcing",
+                "epochs", "BLEU", "PPL"
+            ])
+        writer.writerow(row)
+
+# 2. data paths
 TRAIN_EN = "/kaggle/input/englishfrance/train.en"
 TRAIN_FR = "/kaggle/input/englishfrance/train.fr"
 
@@ -111,9 +113,7 @@ VAL_FR = "/kaggle/input/englishfrance/val.fr"
 TEST_EN = "/kaggle/input/englishfrance/test_2018_flickr.en"
 TEST_FR = "/kaggle/input/englishfrance/test_2018_flickr.fr"
 
-# ===========================================
-# 3. LOAD DATA
-# ===========================================
+# 3. load DataLoaders
 print("Building DataLoaders...")
 
 train_loader, src_vocab, trg_vocab = get_loader(
@@ -132,9 +132,7 @@ TRG_VOCAB_SIZE = len(trg_vocab.itos)
 print(f"Dataset sizes: Train={len(train_loader.dataset)}, Val={len(val_loader.dataset)}, Test={len(test_loader.dataset)}")
 print(f"Vocab sizes: EN={SRC_VOCAB_SIZE}, FR={TRG_VOCAB_SIZE}")
 
-# ===========================================
-# 4. INIT MODEL
-# ===========================================
+# 4. Xây dựng mô hình
 enc = Encoder(
     input_dim=SRC_VOCAB_SIZE,
     embed_dim=EMBED_DIM,
@@ -153,9 +151,7 @@ dec = Decoder(
 model = Seq2Seq(enc, dec, device, teacher_forcing_ratio=TEACHER_FORCING_RATIO).to(device)
 print("Model initialized")
 
-# ===========================================
-# 5. TRAINING
-# ===========================================
+# 5. Huấn luyện mô hình
 print("Start training...")
 
 train_model(
@@ -173,9 +169,7 @@ model.load_state_dict(torch.load(SAVE_PATH))
 model.to(device)
 print("Best model loaded")
 
-# ===========================================
-# 6. INFERENCE EXAMPLES
-# ===========================================
+# 6. Ví dụ dự đoán dịch câu từ Anh sang Pháp
 example_sentences = [
     "I love natural language processing.",
     "Machine learning is amazing.",
@@ -188,9 +182,7 @@ for s in example_sentences:
     print(f"EN: {s}")
     print(f"FR(pred): {pred}\n")
 
-# ===========================================
-# 7. EVALUATION
-# ===========================================
+# 7. Đánh giá tập test
 print("Evaluating on test set...")
 avg_bleu, ppl, bleu_scores, examples = evaluate_with_metrics(
     model=model,
@@ -201,3 +193,26 @@ avg_bleu, ppl, bleu_scores, examples = evaluate_with_metrics(
     pad_idx=trg_vocab.stoi["<pad>"],
     device=device
 )
+
+print(f"\nFinal BLEU: {avg_bleu:.4f}")
+print(f"Final Perplexity: {ppl:.4f}")
+
+# 8. Lưu kết quả thực nghiệm vào csv
+log_experiment(
+    "experiment_results.csv",
+    [
+        args.exp if args.exp else "Custom",
+        EMBED_DIM,
+        HIDDEN_DIM,
+        NUM_LAYERS,
+        DROPOUT,
+        BATCH_SIZE,
+        LR,
+        TEACHER_FORCING_RATIO,
+        N_EPOCHS,
+        avg_bleu,
+        ppl
+    ]
+)
+
+print("\n Kết quả được lưu vào experiment_results.csv")
