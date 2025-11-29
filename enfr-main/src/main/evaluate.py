@@ -3,11 +3,12 @@ from nltk.translate.bleu_score import sentence_bleu, SmoothingFunction
 import matplotlib.pyplot as plt
 import torch.nn as nn
 import torch.optim as optim
+from inference import translate
+import torch
 
 def calculate_perplexity(model, dataloader, pad_idx, device="cuda"):
-    """
-    Tính Perplexity cho Seq2Seq LSTM trên 1 dataloader
-    """
+    # Tính Perplexity cho Seq2Seq LSTM trên 1 dataloader
+
     model.eval()
     criterion = nn.CrossEntropyLoss(ignore_index=pad_idx)
     total_loss = 0
@@ -33,11 +34,9 @@ def calculate_perplexity(model, dataloader, pad_idx, device="cuda"):
     ppl = math.exp(avg_loss)
     return ppl
 
-def evaluate_with_metrics(model, dataloader, src_vocab, trg_vocab, src_tokenizer, trg_tokenizer,
-                          pad_idx, device="cuda"):
-    """
-    Trả về: trung bình BLEU, danh sách BLEU từng câu, Perplexity
-    """
+def evaluate_with_metrics(model, dataloader, src_vocab, trg_vocab, src_tokenizer, pad_idx, device="cuda"):
+
+    # Trả về: trung bình BLEU, danh sách BLEU từng câu, Perplexity
     model.eval()
     bleu_scores = []
     examples = []

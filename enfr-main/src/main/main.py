@@ -114,7 +114,6 @@ avg_bleu, ppl, bleu_scores, examples = evaluate_with_metrics(
     src_vocab=src_vocab,
     trg_vocab=trg_vocab,
     src_tokenizer=tokenize_en,
-    trg_tokenizer=tokenize_fr,
     pad_idx=trg_vocab.stoi["<pad>"],
     device=device
 )
