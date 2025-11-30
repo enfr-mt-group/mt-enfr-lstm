@@ -1,34 +1,40 @@
 import torch
 
 def translate(sentence, model, src_vocab, trg_vocab, src_tokenizer, max_len=50):
-    """
-    sentence: str tiếng Anh
-    model: Seq2Seq LSTM đã train
-    src_vocab: vocab_en
-    trg_vocab: vocab_fr
-    src_tokenizer: function tokenize_en
-    max_len: độ dài tối đa
-    """
+ 
+    # sentence: input sentence
+    # model: Seq2Seq with Attention
 
     model.eval()
+    device = next(model.parameters()).device
 
-    # 1 Tokenize và numericalize
-    tokens = [src_vocab.stoi["<sos>"]] + src_vocab.numericalize(src_tokenizer(sentence)) + [src_vocab.stoi["<eos>"]]
-    src_tensor = torch.tensor(tokens).unsqueeze(0).to(next(model.parameters()).device)  # [1, seq_len]
-    src_len = torch.tensor([len(tokens)]).to(src_tensor.device)
+    # 1. Tokenize + numericalize
+    tokens = (
+        [src_vocab.stoi["<sos>"]] +
+        src_vocab.numericalize(src_tokenizer(sentence)) +
+        [src_vocab.stoi["<eos>"]]
+    )
 
-    # 2 Encoder
+    src_tensor = torch.tensor(tokens).unsqueeze(0).to(device)
+    src_len = torch.tensor([len(tokens)]).to(device)
+
+    # 2. Encoder
     with torch.no_grad():
-        hidden, cell = model.encoder(src_tensor, src_len)
+        hidden, cell, encoder_outputs = model.encoder(src_tensor, src_len)
+        # encoder_outputs: [1, src_len, hidden_dim]
 
-    # 3 Decoder init với <sos>
+    # 3. Decoder init
     trg_indexes = [trg_vocab.stoi["<sos>"]]
-    input_token = torch.tensor([trg_vocab.stoi["<sos>"]]).to(src_tensor.device)
+    input_token = torch.tensor([trg_vocab.stoi["<sos>"]]).to(device)
 
+    # 4. Decode Loop
     for _ in range(max_len):
         with torch.no_grad():
-            output, hidden, cell = model.decoder(input_token, hidden, cell)
-            # output: [1, vocab_size]
+            output, hidden, cell, attn_weights = model.decoder(
+                input_token, hidden, cell, encoder_outputs
+            )
+            # output: [1, trg_vocab_size]
+
             pred_token = output.argmax(1).item()
 
         trg_indexes.append(pred_token)
@@ -36,10 +42,13 @@ def translate(sentence, model, src_vocab, trg_vocab, src_tokenizer, max_len=50):
         if pred_token == trg_vocab.stoi["<eos>"]:
             break
 
-        input_token = torch.tensor([pred_token]).to(src_tensor.device)
+        input_token = torch.tensor([pred_token]).to(device)
 
-    # 4 Convert indices -> words
-    trg_tokens = [trg_vocab.itos[idx] for idx in trg_indexes[1:] if idx != trg_vocab.stoi["<eos>"]]
+    # 5. Convert idx → tokens
+    trg_tokens = [
+        trg_vocab.itos[idx]
+        for idx in trg_indexes[1:]   # bỏ <sos>
+        if idx != trg_vocab.stoi["<eos>"]
+    ]
 
-    translated_sentence = " ".join(trg_tokens)
-    return translated_sentence
+    return " ".join(trg_tokens)

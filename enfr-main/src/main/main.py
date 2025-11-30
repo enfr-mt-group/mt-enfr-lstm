@@ -34,7 +34,7 @@ args = parser.parse_args()
 # 1.1 Kịch bản thực nghiệm
 experiment_presets = {
     "A1": {"embed_dim": 256, "hidden_dim": 256, "num_layers": 1, "dropout": 0.2,
-           "batch_size": 32, "lr": 0.001, "teacher_forcing_ratio": 0.5, "n_epochs": 10},
+           "batch_size": 32, "lr": 0.001, "teacher_forcing_ratio": 0.5, "n_epochs": 1},
 
     "A2": {"embed_dim": 256, "hidden_dim": 512, "num_layers": 2, "dropout": 0.3,
            "batch_size": 32, "lr": 0.001, "teacher_forcing_ratio": 0.5, "n_epochs": 20},
@@ -65,7 +65,7 @@ if args.exp is not None:
 
     preset = experiment_presets[args.exp]
 
-    print(f"\n⚙️ Using preset: {args.exp}")
+    print(f"\nUsing preset: {args.exp}")
     print(preset)
 
     args.embed_dim = preset["embed_dim"]
@@ -140,6 +140,7 @@ enc = Encoder(
     num_layers=NUM_LAYERS,
     dropout=DROPOUT
 )
+
 dec = Decoder(
     output_dim=TRG_VOCAB_SIZE,
     embed_dim=EMBED_DIM,
@@ -148,7 +149,12 @@ dec = Decoder(
     dropout=DROPOUT
 )
 
-model = Seq2Seq(enc, dec, device, teacher_forcing_ratio=TEACHER_FORCING_RATIO).to(device)
+model = Seq2Seq(
+    encoder=enc,
+    decoder=dec,
+    device=device,
+    teacher_forcing_ratio=TEACHER_FORCING_RATIO
+).to(device)
 print("Model initialized")
 
 # 5. Huấn luyện mô hình
