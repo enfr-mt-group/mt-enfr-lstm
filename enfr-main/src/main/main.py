@@ -65,7 +65,7 @@ if args.exp is not None:
 
     preset = experiment_presets[args.exp]
 
-    print(f"\n⚙️ Using preset: {args.exp}")
+    print(f"\nUsing preset: {args.exp}")
     print(preset)
 
     args.embed_dim = preset["embed_dim"]
