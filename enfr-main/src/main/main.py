@@ -148,7 +148,9 @@ dec = Decoder(
     dropout=DROPOUT
 )
 
-model = Seq2Seq(enc, dec, device, teacher_forcing_ratio=TEACHER_FORCING_RATIO).to(device)
+model = Seq2Seq(
+    encoder=enc, decoder=dec, device=device, teacher_forcing_ratio=TEACHER_FORCING_RATIO
+).to(device)
 print("Model initialized")
 
 # 5. Huấn luyện mô hình
