@@ -11,6 +11,7 @@ class Attention(nn.Module):
         # decoder_hidden: [batch, hidden_dim]
         # encoder_outputs: [batch, src_len, hidden_dim]
 
+        batch_size, src_len, enc_dim = encoder_outputs.size()
         # transform decoder hidden state
         dec_hidden = self.attn(decoder_hidden).unsqueeze(2)  # [batch, hidden_dim, 1]
 
@@ -22,9 +23,9 @@ class Attention(nn.Module):
         attn_weights = F.softmax(energy, dim=1)  # [batch, src_len]
 
         # compute context vector
-        context = torch.bmm(attn_weights.unsqueeze(1), encoder_outputs)  # [batch, 1, hidden_dim]
+        context = torch.bmm(attn_weights.unsqueeze(1), encoder_outputs).squeeze(1)  # [batch, hidden_dim]
 
-        return context.squeeze(1), attn_weights  # [batch, hidden_dim]
+        return context, attn_weights  # [batch, hidden_dim]
 
 class Encoder(nn.Module):
     def __init__(self, input_dim, embed_dim=256, hidden_dim=512, num_layers=2, dropout=0.3):
@@ -41,13 +42,10 @@ class Encoder(nn.Module):
         )
 
     def forward(self, src, src_lengths):
-        embedded = self.embedding(src)
-
-        packed = nn.utils.rnn.pack_padded_sequence(embedded, src_lengths.cpu(), batch_first=True)
+        embedded = self.embedding(src)  # [batch, src_len, embed_dim]
+        packed = nn.utils.rnn.pack_padded_sequence(embedded, src_lengths.cpu(), batch_first=True, enforce_sorted=False)
         packed_outputs, (hidden, cell) = self.lstm(packed)
-        outputs, _ = nn.utils.rnn.pad_packed_sequence(packed_outputs, batch_first=True)
-
-        # tra ve hn cn
+        outputs, _ = nn.utils.rnn.pad_packed_sequence(packed_outputs, batch_first=True)  # [batch, src_len, hidden_dim]
         return outputs, hidden, cell
 
 class Decoder(nn.Module):
@@ -86,7 +84,6 @@ class Decoder(nn.Module):
 
         # input vào LSTM
         lstm_input = torch.cat((embedded, context), dim=2)
-
         output, (hidden, cell) = self.lstm(lstm_input, (hidden, cell))
 
         output = output.squeeze(1)
@@ -122,12 +119,10 @@ class Seq2Seq(nn.Module):
         # === 3. Loop qua từng timestep ===
         for t in range(1, trg_len):
             output, hidden, cell, attn = self.decoder(input_token, hidden, cell, encoder_outputs)
-
             outputs[:, t] = output
 
             teacher_force = torch.rand(1).item() < self.teacher_forcing_ratio
             top1 = output.argmax(1)
-
             input_token = trg[:, t] if teacher_force else top1
 
         return outputs
