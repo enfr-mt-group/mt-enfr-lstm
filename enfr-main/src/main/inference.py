@@ -20,7 +20,7 @@ def translate(sentence, model, src_vocab, trg_vocab, src_tokenizer, max_len=50):
 
     # 2. Encoder
     with torch.no_grad():
-        hidden, cell, encoder_outputs = model.encoder(src_tensor, src_len)
+        encoder_outputs, hidden, cell = model.encoder(src_tensor, src_len)
         # encoder_outputs: [1, src_len, hidden_dim]
 
     # 3. Decoder init
