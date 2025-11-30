@@ -1,5 +1,30 @@
 import torch
 import torch.nn as nn
+import torch.nn.functional as F
+
+class Attention(nn.Module):
+    def __init__(self, hidden_dim):
+        super().__init__()
+        self.attn = nn.Linear(hidden_dim, hidden_dim)
+
+    def forward(self, decoder_hidden, encoder_outputs):
+        # decoder_hidden: [batch, hidden_dim]
+        # encoder_outputs: [batch, src_len, hidden_dim]
+
+        # transform decoder hidden state
+        dec_hidden = self.attn(decoder_hidden).unsqueeze(2)  # [batch, hidden_dim, 1]
+
+        # compute energy scores
+        # energy = encoder_outputs • dec_hidden
+        energy = torch.bmm(encoder_outputs, dec_hidden).squeeze(2)  # [batch, src_len]
+
+        # attention weights
+        attn_weights = F.softmax(energy, dim=1)  # [batch, src_len]
+
+        # compute context vector
+        context = torch.bmm(attn_weights.unsqueeze(1), encoder_outputs)  # [batch, 1, hidden_dim]
+
+        return context.squeeze(1), attn_weights  # [batch, hidden_dim]
 
 class Encoder(nn.Module):
     def __init__(self, input_dim, embed_dim=256, hidden_dim=512, num_layers=2, dropout=0.3):
