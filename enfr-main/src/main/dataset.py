@@ -210,17 +210,17 @@ def load_dataset(path):
 # 7. Example usage (Kaggle)
 # =====================================================
 
-if __name__ == "__main__":
-    TRAIN_EN = "/kaggle/input/englishfrance/train.en"
-    TRAIN_FR = "/kaggle/input/englishfrance/train.fr"
+# if __name__ == "__main__":
+#     TRAIN_EN = "/kaggle/input/englishfrance/train.en"
+#     TRAIN_FR = "/kaggle/input/englishfrance/train.fr"
 
-    loader, dataset = get_loader(TRAIN_EN, TRAIN_FR, batch_size=32)
+#     loader, dataset = get_loader(TRAIN_EN, TRAIN_FR, batch_size=32)
 
-    os.makedirs("/kaggle/working/data", exist_ok=True)
+#     os.makedirs("/kaggle/working/data", exist_ok=True)
 
-    save_vocab(dataset.src_vocab, "/kaggle/working/data/vocab_en.pkl")
-    save_vocab(dataset.trg_vocab, "/kaggle/working/data/vocab_fr.pkl")
+#     save_vocab(dataset.src_vocab, "/kaggle/working/data/vocab_en.pkl")
+#     save_vocab(dataset.trg_vocab, "/kaggle/working/data/vocab_fr.pkl")
 
-    save_dataset(dataset, "/kaggle/working/data/train_dataset.pt")
+#     save_dataset(dataset, "/kaggle/working/data/train_dataset.pt")
 
-    print(" Saved vocab + dataset → /kaggle/working/data/")
+#     print(" Saved vocab + dataset → /kaggle/working/data/")
