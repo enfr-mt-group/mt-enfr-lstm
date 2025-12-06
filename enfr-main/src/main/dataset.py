@@ -2,17 +2,15 @@ import os
 import gzip
 import torch
 from torch.utils.data import Dataset, DataLoader
+from torchtext.vocab import build_vocab_from_iterator
 from torch.nn.utils.rnn import pad_sequence
 from collections import Counter
 import spacy
 from tqdm import tqdm
 import pickle
 
-# =====================================================
 # 1. Tokenizers
-# =====================================================
-
-# Nếu Kaggle không có model spaCy, dùng blank model
+# Nếu Kaggle dùng blank model
 try:
     spacy_en = spacy.load("en_core_web_sm")
 except:
@@ -24,56 +22,42 @@ except:
     spacy_fr = spacy.blank("fr")
 
 def tokenize_en(text):
-    return [tok.text.lower() for tok in spacy_en.tokenizer(text)]
+    # Đảo ngược câu tiếng Anh 
+    return [tok.text.lower() for tok in spacy_en.tokenizer(text)][::-1]
 
 def tokenize_fr(text):
+    # Câu đầu ra giữ nguyên giúp mô hình dễ học
     return [tok.text.lower() for tok in spacy_fr.tokenizer(text)]
 
+# 2. Vocabulary sử dụng build_vocab_from_iterator
 
-# =====================================================
-# 2. Vocabulary
-# =====================================================
+SPECIAL_TOKENS = ["<pad>", "<unk>", "<sos>", "<eos>"]
 
-class Vocab:
-    def __init__(self, max_size=10000, freq_threshold=1):
-        self.max_size = max_size
-        self.freq_threshold = freq_threshold
+# Danh sách các token đặc biệt
+def yield_tokens(list_of_token_lists):
+    for tokens in list_of_token_lists:
+        yield tokens
 
-        # token đặc biệt
-        self.itos = {
-            0: "<pad>",
-            1: "<sos>",
-            2: "<eos>",
-            3: "<unk>"
-        }
-        self.stoi = {v: k for k, v in self.itos.items()}
+# Vocab class cho việc xây dựng và chuyển đổi
+def build_vocab(tokenized_sentences, max_size=10000):
+    # Build raw vocab
+    vocab = build_vocab_from_iterator(
+        yield_tokens(tokenized_sentences),
+        specials=SPECIAL_TOKENS,
+        special_first=True
+    )
+    vocab.set_default_index(vocab["<unk>"])
 
-    def build_vocabulary(self, sentences):
-        freqs = Counter()
+    # Limit size → keep 10k tokens (excluding specials)
+    if len(vocab) > max_size + len(SPECIAL_TOKENS):
+        kept_tokens = vocab.get_itos()[len(SPECIAL_TOKENS): max_size + len(SPECIAL_TOKENS)]
 
-        for sent in sentences:
-            for token in sent:
-                freqs[token] += 1
+        vocab = build_vocab_from_iterator(
+            [kept_tokens], specials=SPECIAL_TOKENS, special_first=True
+        )
+        vocab.set_default_index(vocab["<unk>"])
 
-        # lọc theo threshold
-        filtered = [w for w, f in freqs.items() if f >= self.freq_threshold]
-
-        # sắp xếp theo tần suất
-        sorted_words = sorted(filtered, key=lambda w: freqs[w], reverse=True)
-
-        # giới hạn vocab
-        if self.max_size:
-            sorted_words = sorted_words[: self.max_size]
-
-        # thêm vào vocab
-        idx = len(self.itos)
-        for word in sorted_words:
-            self.itos[idx] = word
-            self.stoi[word] = idx
-            idx += 1
-
-    def numericalize(self, tokens):
-        return [self.stoi.get(token, self.stoi["<unk>"]) for token in tokens]
+    return vocab
 
 
 # =====================================================
@@ -103,39 +87,39 @@ class TranslationDataset(Dataset):
 
         # xây vocab nếu chưa có
         if src_vocab is None:
-            self.src_vocab = Vocab(max_size=10000)
-            self.src_vocab.build_vocabulary(self.src_sentences)
+            self.src_vocab = build_vocab(self.src_sentences, max_size=10000)
         else:
             self.src_vocab = src_vocab
 
         if trg_vocab is None:
-            self.trg_vocab = Vocab(max_size=10000)
-            self.trg_vocab.build_vocabulary(self.trg_sentences)
+            self.trg_vocab = build_vocab(self.trg_sentences, max_size=10000)
         else:
             self.trg_vocab = trg_vocab
 
-        self.src_pad_idx = self.src_vocab.stoi["<pad>"]
-        self.trg_pad_idx = self.trg_vocab.stoi["<pad>"]
+        self.src_pad_idx = self.src_vocab["<pad>"]
+        self.trg_pad_idx = self.trg_vocab["<pad>"]
 
     def __len__(self):
         return len(self.src_sentences)
 
     def __getitem__(self, idx):
-        src = [self.src_vocab.stoi["<sos>"]] + \
-              self.src_vocab.numericalize(self.src_sentences[idx]) + \
-              [self.src_vocab.stoi["<eos>"]]
 
-        trg = [self.trg_vocab.stoi["<sos>"]] + \
-              self.trg_vocab.numericalize(self.trg_sentences[idx]) + \
-              [self.trg_vocab.stoi["<eos>"]]
+        src_tokens = self.src_sentences[idx]
+        trg_tokens = self.trg_sentences[idx]
+
+        # numericalize using torchtext vocab
+        src = [self.src_vocab["<sos>"]] + \
+              [self.src_vocab[token] for token in src_tokens] + \
+              [self.src_vocab["<eos>"]]
+
+        trg = [self.trg_vocab["<sos>"]] + \
+              [self.trg_vocab[token] for token in trg_tokens] + \
+              [self.trg_vocab["<eos>"]]
 
         return torch.tensor(src), torch.tensor(trg)
 
 
-# =====================================================
-# 4. Collate Function — chuẩn LSTM Seq2Seq
-# =====================================================
-
+# 4. Collate Function — LSTM Seq2Seq
 class MyCollate:
     def __init__(self, src_pad_idx, trg_pad_idx):
         self.src_pad_idx = src_pad_idx
@@ -163,9 +147,7 @@ class MyCollate:
         return src_padded, trg_padded, src_lengths_sorted, trg_lengths
 
 
-# =====================================================
-# 5. Helper: build DataLoader
-# =====================================================
+# 5. Build DataLoader
 
 def get_loader(src_path, trg_path, batch_size=64,
                src_tokenizer=tokenize_en, trg_tokenizer=tokenize_fr,
@@ -187,10 +169,7 @@ def get_loader(src_path, trg_path, batch_size=64,
 
     return loader, ds.src_vocab, ds.trg_vocab
 
-# =====================================================
 # 6. Save / Load Functions
-# =====================================================
-
 def save_vocab(vocab, path):
     with open(path, "wb") as f:
         pickle.dump(vocab, f)
@@ -204,23 +183,3 @@ def save_dataset(dataset, path):
 
 def load_dataset(path):
     return torch.load(path)
-
-
-# =====================================================
-# 7. Example usage (Kaggle)
-# =====================================================
-
-if __name__ == "__main__":
-    TRAIN_EN = "/kaggle/input/englishfrance/train.en"
-    TRAIN_FR = "/kaggle/input/englishfrance/train.fr"
-
-    loader, dataset = get_loader(TRAIN_EN, TRAIN_FR, batch_size=32)
-
-    os.makedirs("/kaggle/working/data", exist_ok=True)
-
-    save_vocab(dataset.src_vocab, "/kaggle/working/data/vocab_en.pkl")
-    save_vocab(dataset.trg_vocab, "/kaggle/working/data/vocab_fr.pkl")
-
-    save_dataset(dataset, "/kaggle/working/data/train_dataset.pt")
-
-    print(" Saved vocab + dataset → /kaggle/working/data/")
