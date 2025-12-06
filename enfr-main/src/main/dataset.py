@@ -92,13 +92,13 @@ class TranslationDataset(Dataset):
 
         # xây vocab nếu chưa có
         if src_vocab is None:
-            self.src_vocab = Vocab(max_size=10000)
+            self.src_vocab = Vocab(max_size=10000, freq_threshold=2)
             self.src_vocab.build_vocabulary(self.src_sentences)
         else:
             self.src_vocab = src_vocab
 
         if trg_vocab is None:
-            self.trg_vocab = Vocab(max_size=10000)
+            self.trg_vocab = Vocab(max_size=10000, freq_threshold=2)
             self.trg_vocab.build_vocabulary(self.trg_sentences)
         else:
             self.trg_vocab = trg_vocab
