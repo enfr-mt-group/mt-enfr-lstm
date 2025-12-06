@@ -20,7 +20,7 @@ try:
 except:
     spacy_fr = spacy.blank("fr")
 
-def tokenize_en(text):
+def tokenize_en(text): 
     return [tok.text.lower() for tok in spacy_en.tokenizer(text)][::-1]
 
 def tokenize_fr(text):
