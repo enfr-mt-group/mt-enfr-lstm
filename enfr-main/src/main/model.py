@@ -20,12 +20,20 @@ class Encoder(nn.Module):
         embedded = self.embedding(src)
 
         # pack cho LSTM
-        packed = nn.utils.rnn.pack_padded_sequence(embedded, src_lengths.cpu(), batch_first=True)
+        packed = nn.utils.rnn.pack_padded_sequence(embedded, src_lengths.cpu(), batch_first=True, enforce_sorted=False)
 
-        outputs, (hidden, cell) = self.lstm(packed)
+        packed_outputs, (hidden, cell) = self.lstm(packed)
 
-        # Encoder trả về (h_n, c_n)
-        return hidden, cell
+        # Lấy chuỗi hidden states (cần cho attention — optional)
+        outputs, _ = nn.utils.rnn.pad_packed_sequence(
+            packed_outputs,
+            batch_first=True
+        )
+        # outputs = [batch, src_len, hidden_dim]
+
+        # hidden, cell = [num_layers, batch, hidden_dim]
+
+        return outputs, hidden, cell
 
 class Decoder(nn.Module):
     def __init__(self, output_dim, embed_dim=256, hidden_dim=512, num_layers=2, dropout=0.3):
@@ -73,20 +81,24 @@ class Seq2Seq(nn.Module):
         outputs = torch.zeros(batch_size, trg_len, trg_vocab_size).to(self.device)
 
         # === 1. Encoder ===
-        hidden, cell = self.encoder(src, src_lengths)
+        encoder_outputs, hidden, cell = self.encoder(src, src_lengths)
 
         # === 2. Decoder step đầu: dùng <sos> ===
         input_token = trg[:, 0]  # <sos>
 
         # === 3. Loop qua từng timestep ===
         for t in range(1, trg_len):
+            # output = [batch, vocab_size]
             output, hidden, cell = self.decoder(input_token, hidden, cell)
 
             outputs[:, t] = output
 
-            # Teacher forcing
-            use_teacher = torch.rand(1).item() < self.teacher_forcing_ratio
+            # Teacher forcing cho từng sample trong batch
+            teacher_force = (torch.rand(batch_size).to(self.device) < self.teacher_forcing_ratio)
 
-            input_token = trg[:, t] if use_teacher else output.argmax(1)
+            next_input = output.argmax(1)
+
+            # nếu teacher_force[k] == True → dùng trg[k, t]
+            input_token = torch.where(teacher_force, trg[:, t], next_input)
 
         return outputs
