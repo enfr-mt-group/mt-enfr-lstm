@@ -1,14 +1,15 @@
 import math
 from nltk.translate.bleu_score import sentence_bleu, SmoothingFunction
 import matplotlib.pyplot as plt
-import torch.nn as nn
-import torch.optim as optim
-from inference import translate
 import torch
+import torch.nn as nn
+from inference import translate
 
+# 1. PERPLEXITY
 def calculate_perplexity(model, dataloader, pad_idx, device="cuda"):
-    # Tính Perplexity cho Seq2Seq LSTM trên 1 dataloader
-
+    """
+    Tính Perplexity = exp(average_loss)
+    """
     model.eval()
     criterion = nn.CrossEntropyLoss(ignore_index=pad_idx)
     total_loss = 0
@@ -16,13 +17,16 @@ def calculate_perplexity(model, dataloader, pad_idx, device="cuda"):
 
     with torch.no_grad():
         for src, trg, src_len, trg_len in dataloader:
+
             src = src.to(device)
             trg = trg.to(device)
             src_len = src_len.to(device)
 
+            # forward
             output = model(src, src_len, trg)
             output_dim = output.shape[-1]
 
+            # bỏ <sos>
             output = output[:, 1:].reshape(-1, output_dim)
             trg_flat = trg[:, 1:].reshape(-1)
 
@@ -34,9 +38,10 @@ def calculate_perplexity(model, dataloader, pad_idx, device="cuda"):
     ppl = math.exp(avg_loss)
     return ppl
 
-def evaluate_with_metrics(model, dataloader, src_vocab, trg_vocab, src_tokenizer, pad_idx, device="cuda"):
+# 2. BLEU + Example
+def evaluate_with_metrics(model, dataloader, src_vocab, trg_vocab,
+                          src_tokenizer, pad_idx, device="cuda"):
 
-    # Trả về: trung bình BLEU, danh sách BLEU từng câu, Perplexity
     model.eval()
     bleu_scores = []
     examples = []
@@ -44,21 +49,55 @@ def evaluate_with_metrics(model, dataloader, src_vocab, trg_vocab, src_tokenizer
     smooth_fn = SmoothingFunction().method1
 
     for i, (src, trg, src_len, trg_len) in enumerate(dataloader):
+
         src = src.to(device)
         trg = trg.to(device)
         src_len = src_len.to(device)
 
-        for j in range(src.size(0)):
-            src_seq = src[j, :src_len[j]].cpu()
-            trg_seq = trg[j, :trg_len[j]].cpu()
+        batch_size = src.size(0)
 
-            src_sentence = " ".join([src_vocab.itos[idx.item()] for idx in src_seq if idx.item() not in [src_vocab.stoi["<sos>"], src_vocab.stoi["<eos>"], src_vocab.stoi["<pad>"]]])
-            trg_sentence = [trg_vocab.itos[idx.item()] for idx in trg_seq if idx.item() not in [trg_vocab.stoi["<sos>"], trg_vocab.stoi["<eos>"], trg_vocab.stoi["<pad>"]]]
+        # duyệt từng câu trong batch
+        for j in range(batch_size):
+            # 1. Chuyển tensor -> câu English
+            src_seq = src[j, :src_len[j]].cpu().tolist()
+            clean_src = [
+                src_vocab.itos[idx]
+                for idx in src_seq
+                if idx not in [
+                    src_vocab.stoi["<sos>"],
+                    src_vocab.stoi["<eos>"],
+                    src_vocab.stoi["<pad>"],
+                ]
+            ]
+            src_sentence = " ".join(clean_src)
+            # 2. Ground truth French
+            trg_seq = trg[j, :trg_len[j]].cpu().tolist()
+            trg_sentence = [
+                trg_vocab.itos[idx]
+                for idx in trg_seq
+                if idx not in [
+                    trg_vocab.stoi["<sos>"],
+                    trg_vocab.stoi["<eos>"],
+                    trg_vocab.stoi["<pad>"],
+                ]
+            ]
+            # 3. Predicted French
+            pred_sentence = translate(
+                src_sentence,
+                model,
+                src_vocab,
+                trg_vocab,
+                src_tokenizer
+            ).split()
 
-            pred_sentence = translate(src_sentence, model, src_vocab, trg_vocab, src_tokenizer).split()
-            bleu = sentence_bleu([trg_sentence], pred_sentence, smoothing_function=smooth_fn)
+            bleu = sentence_bleu(
+                [trg_sentence],
+                pred_sentence,
+                smoothing_function=smooth_fn
+            )
             bleu_scores.append(bleu)
 
+            # Lưu 5 ví dụ đầu
             if len(examples) < 5:
                 examples.append({
                     "src": src_sentence,
@@ -67,33 +106,40 @@ def evaluate_with_metrics(model, dataloader, src_vocab, trg_vocab, src_tokenizer
                     "bleu": bleu
                 })
 
+    # BLEU trung bình
     avg_bleu = sum(bleu_scores) / len(bleu_scores)
+
+    # Perplexity
     ppl = calculate_perplexity(model, dataloader, pad_idx, device)
 
+    print(f"\n==============================")
     print(f"Average BLEU score: {avg_bleu:.4f}")
-    print(f"Perplexity: {ppl:.4f}\n")
+    print(f"Perplexity: {ppl:.4f}")
+    print("==============================\n")
 
-    # In 5 ví dụ
-    print("Examples:")
+    # In 5 ví dụ dịch
+    print("----- EXAMPLES -----")
     for ex in examples:
         print(f"EN: {ex['src']}")
         print(f"FR(pred): {ex['pred']}")
         print(f"FR(true): {ex['trg']}")
         print(f"BLEU: {ex['bleu']:.4f}\n")
 
-    # Biểu đồ phân phối BLEU
-    plt.figure(figsize=(10,4))
-    plt.subplot(1,2,1)
-    plt.hist(bleu_scores, bins=20, color="skyblue", edgecolor="black")
-    plt.title("BLEU score distribution")
-    plt.xlabel("BLEU")
-    plt.ylabel("Number of sentences")
+    #  Biểu đồ BLEU + Perplexity
+    plt.figure(figsize=(10, 4))
 
-    # Biểu đồ Perplexity (chỉ 1 giá trị PPL -> vẽ bar)
-    plt.subplot(1,2,2)
+    # BLEU distribution
+    plt.subplot(1, 2, 1)
+    plt.hist(bleu_scores, bins=20, color="skyblue", edgecolor="black")
+    plt.title("BLEU Score Distribution")
+    plt.xlabel("BLEU")
+    plt.ylabel("Frequency")
+
+    # Perplexity (bar chart)
+    plt.subplot(1, 2, 2)
     plt.bar(["Perplexity"], [ppl], color="salmon")
     plt.title("Perplexity")
-    plt.ylabel("PPL")
+    plt.ylabel("Value")
 
     plt.tight_layout()
     plt.savefig("evaluation.png")

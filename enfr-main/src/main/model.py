@@ -80,13 +80,13 @@ class Seq2Seq(nn.Module):
 
         outputs = torch.zeros(batch_size, trg_len, trg_vocab_size).to(self.device)
 
-        # === 1. Encoder ===
+        # 1. Encoder
         encoder_outputs, hidden, cell = self.encoder(src, src_lengths)
 
-        # === 2. Decoder step đầu: dùng <sos> ===
+        # 2. Decoder step đầu: dùng <sos>
         input_token = trg[:, 0]  # <sos>
 
-        # === 3. Loop qua từng timestep ===
+        # 3. Loop qua từng timestep
         for t in range(1, trg_len):
             # output = [batch, vocab_size]
             output, hidden, cell = self.decoder(input_token, hidden, cell)
@@ -98,7 +98,7 @@ class Seq2Seq(nn.Module):
 
             next_input = output.argmax(1)
 
-            # nếu teacher_force[k] == True → dùng trg[k, t]
+            # nếu teacher_force[k] == True dùng trg[k, t]
             input_token = torch.where(teacher_force, trg[:, t], next_input)
 
         return outputs
