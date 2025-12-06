@@ -125,24 +125,4 @@ def evaluate_with_metrics(model, dataloader, src_vocab, trg_vocab,
         print(f"FR(true): {ex['trg']}")
         print(f"BLEU: {ex['bleu']:.4f}\n")
 
-    #  Biểu đồ BLEU + Perplexity
-    plt.figure(figsize=(10, 4))
-
-    # BLEU distribution
-    plt.subplot(1, 2, 1)
-    plt.hist(bleu_scores, bins=20, color="skyblue", edgecolor="black")
-    plt.title("BLEU Score Distribution")
-    plt.xlabel("BLEU")
-    plt.ylabel("Frequency")
-
-    # Perplexity (bar chart)
-    plt.subplot(1, 2, 2)
-    plt.bar(["Perplexity"], [ppl], color="salmon")
-    plt.title("Perplexity")
-    plt.ylabel("Value")
-
-    plt.tight_layout()
-    plt.savefig("evaluation.png")
-    plt.show()
-
     return avg_bleu, ppl, bleu_scores, examples
