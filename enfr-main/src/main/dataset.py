@@ -28,7 +28,7 @@ def tokenize_fr(text):
 
 # 2. Vocabulary
 class Vocab:
-    def __init__(self, max_size=10000, freq_threshold=1):
+    def __init__(self, max_size=10000, freq_threshold=2):
         self.max_size = max_size
         self.freq_threshold = freq_threshold
 
