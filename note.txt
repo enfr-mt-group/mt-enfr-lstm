@@ -1,0 +1,26 @@
+1. Dataset + DataLoader (data.py)
+OK:
+- Bạn chỉ dùng torch.utils.data.Dataset, DataLoader, pad_sequence và spacy để tokenizer.
+- Tự viết Vocab và TranslationDataset.
+- Không dùng seq2seq có sẵn. ✅
+
+2. Model (train_data.py)
+
+OK:
+- Encoder–Decoder LSTM được tự viết từ nn.LSTM.
+- Seq2Seq class tự định nghĩa, forward tự implement.
+- Teacher Forcing tự code.
+- Loss dùng nn.CrossEntropyLoss(ignore_index=PAD_IDX).
+- Không dùng torchtext.legacy, torchtext.datasets hay transformers. ✅
+
+3. Evaluation / BLEU (evaluate_data.py)
+OK:
+- Chỉ dùng PyTorch để forward model.
+- BLEU score dùng nltk chỉ để đánh giá, không phải để build seq2seq. ✅
+
+4. Thư viện ngoài cho tokenization
+- spacy dùng chỉ để tokenize, không ảnh hưởng seq2seq. ✅
+
+Kết luận
+- Code hiện tại đúng yêu cầu: Python + PyTorch thuần túy, không dùng seq2seq có sẵn.
+- Các bước bạn đã triển khai: Dataset → Vocab → Encoder–Decoder LSTM → Teacher Forcing → Loss → Checkpoint → Plot Loss → BLEU đều tự implement.
