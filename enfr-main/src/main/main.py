@@ -178,9 +178,9 @@ print("Best model loaded")
 
 # 6. Ví dụ dự đoán dịch câu từ Anh sang Pháp
 example_sentences = [
-    "I love natural language processing.",
-    "Machine learning is amazing.",
-    "This is a simple test sentence."
+    "a man wearing a hat is standing in front of a book store while looking at a window .",
+    "a girl in a pink coat is looking for a book while standing in a building .",
+    "a person wearing goggles is sledding down a hill in front of a building ."
 ]
 
 print("\n Translation examples:")
