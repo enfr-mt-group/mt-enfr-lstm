@@ -8,6 +8,7 @@ from model import Encoder, Decoder, Seq2Seq
 from train import train_model
 from inference import translate
 from evaluate import evaluate_with_metrics
+import matplotlib.pyplot as plt
 
 # 1. Tham số thực nghiệm
 parser = argparse.ArgumentParser(description="Seq2Seq EN->FR Translation Training")
@@ -147,7 +148,7 @@ print("Model initialized")
 # 5. Huấn luyện mô hình
 print("Start training...")
 
-train_model(
+train_losses, val_losses = train_model(
     model,
     train_loader=train_loader,
     val_loader=val_loader,
@@ -157,6 +158,19 @@ train_model(
     teacher_forcing_ratio=TEACHER_FORCING_RATIO,
     save_path=SAVE_PATH
 )
+
+plt.figure(figsize=(10,6))
+plt.plot(train_losses, label="Train Loss", marker="o")
+plt.plot(val_losses, label="Val Loss", marker="x")
+
+plt.title("Training Curve (Loss per Epoch)")
+plt.xlabel("Epoch")
+plt.ylabel("Loss")
+plt.grid(True)
+plt.legend()
+plt.tight_layout()
+plt.savefig("loss_curve.png")
+plt.show()
 
 model.load_state_dict(torch.load(SAVE_PATH))
 model.to(device)
