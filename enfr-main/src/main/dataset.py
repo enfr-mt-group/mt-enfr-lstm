@@ -65,6 +65,7 @@ class Vocab:
             self.stoi[word] = idx
             idx += 1
 
+    # chuyển token thành chỉ số
     def numericalize(self, tokens):
         return [self.stoi.get(token, self.stoi["<unk>"]) for token in tokens]
 
@@ -141,7 +142,7 @@ class MyCollate:
         trg_batch = [trg_batch[i] for i in perm_idx]
         trg_lengths = trg_lengths[perm_idx]
 
-        # padding
+        # dùng pad_sequence để padding đồng bộ độ dài trong batch
         src_padded = pad_sequence(src_batch, batch_first=True, padding_value=self.src_pad_idx)
         trg_padded = pad_sequence(trg_batch, batch_first=True, padding_value=self.trg_pad_idx)
 
