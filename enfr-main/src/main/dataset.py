@@ -19,7 +19,7 @@ try:
     spacy_fr = spacy.load("fr_core_news_sm")
 except:
     spacy_fr = spacy.blank("fr")
-#nếu là attention thì ko dùng reverse [::-1] 
+#nếu là Attention thì ko dùng reverse [::-1] 
 def tokenize_en(text): 
     return [tok.text.lower() for tok in spacy_en.tokenizer(text)]
 
