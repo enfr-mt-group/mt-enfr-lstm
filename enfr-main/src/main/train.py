@@ -75,7 +75,7 @@ def evaluate(model, dataloader, criterion, pad_idx):
 # ===============================================
 def train_model(model, train_loader, val_loader, pad_idx,
                 n_epochs=20, lr=0.001, teacher_forcing_ratio=0.5,
-                save_path="best_model.pt"):
+                save_path="best_model.pth"):
 
     optimizer = optim.Adam(model.parameters(), lr=lr)
     criterion = nn.CrossEntropyLoss(ignore_index=pad_idx)
