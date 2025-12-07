@@ -1,11 +1,14 @@
 import torch
 import torch.nn as nn
 
+
 class Encoder(nn.Module):
+    #luồng Encoder : TokenId -> Embedding -> LSTM (Packed) -> Unpack -> Outputs, Hidden, Cell -> đưa sang Decoder
     def __init__(self, input_dim, embed_dim=256, hidden_dim=512, num_layers=2, dropout=0.3):
         super().__init__()
 
         self.embedding = nn.Embedding(input_dim, embed_dim)
+        self.dropout = nn.Dropout(dropout)
 
         self.lstm = nn.LSTM(
             embed_dim,
@@ -17,10 +20,11 @@ class Encoder(nn.Module):
 
     def forward(self, src, src_lengths):
         # src = [batch, src_len]
+        # src_lengths là đo độ dài thật của mỗi câu trong batch
         embedded = self.embedding(src)
 
         # pack cho LSTM
-        packed = nn.utils.rnn.pack_padded_sequence(embedded, src_lengths.cpu(), batch_first=True, enforce_sorted=False)
+        packed = nn.utils.rnn.pack_padded_sequence(embedded, src_lengths.cpu(), batch_first=True, enforce_sorted=True)
 
         packed_outputs, (hidden, cell) = self.lstm(packed)
 
@@ -57,10 +61,10 @@ class Decoder(nn.Module):
 
         embedded = self.embedding(input_token)  # -> [batch, 1, embed_dim]
 
-        outputs, (hidden, cell) = self.lstm(embedded, (hidden, cell))
+        output, (hidden, cell) = self.lstm(embedded, (hidden, cell))
 
-        # outputs = [batch, 1, hidden_dim]
-        prediction = self.fc_out(outputs.squeeze(1))  # -> [batch, output_dim]
+        # output = [batch, 1, hidden_dim]
+        prediction = self.fc_out(output.squeeze(1))  # -> [batch, output_dim]
 
         return prediction, hidden, cell
 
