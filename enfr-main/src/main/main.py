@@ -9,9 +9,23 @@ from train import train_model
 from inference import translate
 from evaluate import evaluate_with_metrics
 import matplotlib.pyplot as plt
+import random
+import numpy as np
+
+# Đặt seed để kiểm soát tính ngẫu nhiên
+def setup_seed(seed=42):
+    random.seed(seed)
+    np.random.seed(seed)
+    torch.manual_seed(seed)
+    torch.cuda.manual_seed_all(seed)
+
+    torch.backends.cudnn.deterministic = True
+    torch.backends.cudnn.benchmark = False
+
+setup_seed(42)
 
 # 1. Tham số thực nghiệm
-parser = argparse.ArgumentParser(description="Seq2Seq EN->FR Translation Training")
+parser = argparse.ArgumentParser(description="EN FR Translation Training")
 
 # Basic args
 parser.add_argument("--batch_size", type=int, default=32)
