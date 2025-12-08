@@ -11,6 +11,7 @@ from evaluate import evaluate_with_metrics
 import matplotlib.pyplot as plt
 import random
 import numpy as np
+from loadCheckpoint import load_checkpoint
 # Đặt seed để kiểm soát tính ngẫu nhiên
 def setup_seed(seed=42):
     random.seed(seed)
@@ -224,6 +225,8 @@ avg_bleu, ppl, bleu_scores, examples = evaluate_with_metrics(
 
 print(f"\nFinal BLEU: {avg_bleu:.4f}")
 print(f"Final Perplexity: {ppl:.4f}")
+
+load_checkpoint(SAVE_PATH)
 
 # 8. Lưu kết quả thực nghiệm vào csv
 log_experiment(
