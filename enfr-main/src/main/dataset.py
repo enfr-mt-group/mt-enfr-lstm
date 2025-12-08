@@ -9,16 +9,9 @@ from tqdm import tqdm
 import pickle
 
 # 1. Tokenizers
-# Nếu Kaggle không có model spaCy, dùng blank model
-try:
     spacy_en = spacy.load("en_core_web_sm")
-except:
-    spacy_en = spacy.blank("en")
-
-try:
     spacy_fr = spacy.load("fr_core_news_sm")
-except:
-    spacy_fr = spacy.blank("fr")
+
 #nếu là Attention thì ko dùng reverse [::-1] 
 def tokenize_en(text): 
     return [tok.text.lower() for tok in spacy_en.tokenizer(text)]
