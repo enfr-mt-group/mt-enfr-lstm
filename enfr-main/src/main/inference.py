@@ -1,7 +1,7 @@
 import torch
 import torch.nn.functional as F
 
-def translate(sentence, model, src_vocab, trg_vocab, src_tokenizer, max_len=50, method="greedy", beem_sizes=5):
+def translate(sentence, model, src_vocab, trg_vocab, src_tokenizer, max_len=50, method="greedy", beam_sizes=5):
 
     model.eval()
     device = next(model.parameters()).device
