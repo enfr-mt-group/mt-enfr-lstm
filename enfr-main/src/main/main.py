@@ -51,7 +51,7 @@ args = parser.parse_args()
 # 1.1 Kịch bản thực nghiệm
 experiment_presets = {
     "A1": {"embed_dim": 256, "hidden_dim": 512, "num_layers": 2, "dropout": 0.3, "batch_size": 32, "lr": 0.001,
-           "teacher_forcing_ratio": 0.5, "n_epochs": 20, "use_attention": True},
+           "teacher_forcing_ratio": 0.5, "n_epochs": 1, "use_attention": True},
 
     "A2": {"embed_dim": 512, "hidden_dim": 512, "num_layers": 2, "dropout": 0.3, "batch_size": 32, "lr": 0.001,
            "teacher_forcing_ratio": 0.5, "n_epochs": 20, "use_attention": True},

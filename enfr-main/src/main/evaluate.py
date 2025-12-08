@@ -38,7 +38,7 @@ def calculate_perplexity(model, dataloader, pad_idx, device="cuda"):
 
 # 2. BLEU + Example
 def evaluate_with_metrics(model, dataloader, src_vocab, trg_vocab,
-                          src_tokenizer, pad_idx, device="cuda", method="greedy", beam_size=5):
+                          src_tokenizer, pad_idx, device="cuda", method="greedy", beam_sizes=5):
 
     model.eval()
     bleu_scores = []
@@ -87,7 +87,7 @@ def evaluate_with_metrics(model, dataloader, src_vocab, trg_vocab,
                 trg_vocab,
                 src_tokenizer,
                 method=method, # "greedy" hoặc "beam"
-                beam_size=beam_size
+                beam_sizes=beam_sizes
             ).split()
 
             # 4. Tính BLEU Score
