@@ -31,7 +31,7 @@ parser.add_argument("--batch_size", type=int, default=32)
 parser.add_argument("--n_epochs", type=int, default=1)
 parser.add_argument("--lr", type=float, default=0.001)
 parser.add_argument("--teacher_forcing_ratio", type=float, default=0.5)
-parser.add_argument("--save_path", type=str, default="enfr-main/checkpoint/best_seq2seq.pth")
+parser.add_argument("--save_path", type=str, default="enfr-main/src/checkpoint/best_seq2seq.pth")
 
 # Model args
 parser.add_argument("--embed_dim", type=int, default=256)
