@@ -94,6 +94,7 @@ def train_model(model, train_loader, val_loader, pad_idx,
         # Early stopping + save best model
         if val_loss < best_val_loss:
             best_val_loss = val_loss
+            os.makedirs(os.path.dirname(save_path), exist_ok=True)
             torch.save(model.state_dict(), save_path)
             epochs_no_improve = 0
             print(" Best model saved")
