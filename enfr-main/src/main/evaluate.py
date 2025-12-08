@@ -7,9 +7,7 @@ from inference import translate
 
 # 1. PERPLEXITY
 def calculate_perplexity(model, dataloader, pad_idx, device="cuda"):
-    """
-    Tính Perplexity = exp(average_loss)
-    """
+    # Tính Perplexity = exp(average_loss)
     model.eval()
     criterion = nn.CrossEntropyLoss(ignore_index=pad_idx)
     total_loss = 0
@@ -40,7 +38,7 @@ def calculate_perplexity(model, dataloader, pad_idx, device="cuda"):
 
 # 2. BLEU + Example
 def evaluate_with_metrics(model, dataloader, src_vocab, trg_vocab,
-                          src_tokenizer, pad_idx, device="cuda"):
+                          src_tokenizer, pad_idx, device="cuda", method="greedy", beam_size=5):
 
     model.eval()
     bleu_scores = []
@@ -87,9 +85,12 @@ def evaluate_with_metrics(model, dataloader, src_vocab, trg_vocab,
                 model,
                 src_vocab,
                 trg_vocab,
-                src_tokenizer
+                src_tokenizer,
+                method=method, # "greedy" hoặc "beam"
+                beam_size=beam_size
             ).split()
 
+            # 4. Tính BLEU Score
             bleu = sentence_bleu(
                 [trg_sentence],
                 pred_sentence,
