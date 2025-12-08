@@ -75,7 +75,7 @@ def translate(sentence, model, src_vocab, trg_vocab, src_tokenizer, max_len=50, 
                         )
 
                 log_probs = F.log_softmax(output, dim=1).squeeze(0)
-                topk = torch.topk(log_probs, beam_size)
+                topk = torch.topk(log_probs, beam_sizes)
 
                 for prob, idx in zip(topk.values, topk.indices):
                     new_seq = seq + [idx.item()]
@@ -83,9 +83,9 @@ def translate(sentence, model, src_vocab, trg_vocab, src_tokenizer, max_len=50, 
                     new_beams.append((new_log_prob, new_seq, h_new, c_new))
 
             # Giữ beam_size chuỗi tốt nhất
-            beams = sorted(new_beams, key=lambda x: x[0], reverse=True)[:beam_size]
+            beams = sorted(new_beams, key=lambda x: x[0], reverse=True)[:beam_sizes]
 
-            if len(completed) >= beam_size:
+            if len(completed) >= beam_sizes:
                 break
 
         # chọn câu tốt nhất
