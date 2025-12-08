@@ -9,8 +9,8 @@ from tqdm import tqdm
 import pickle
 
 # 1. Tokenizers
-    spacy_en = spacy.load("en_core_web_sm")
-    spacy_fr = spacy.load("fr_core_news_sm")
+spacy_en = spacy.load("en_core_web_sm")
+spacy_fr = spacy.load("fr_core_news_sm")
 
 #nếu là Attention thì ko dùng reverse [::-1] 
 def tokenize_en(text): 
