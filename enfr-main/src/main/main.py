@@ -219,8 +219,8 @@ avg_bleu, ppl, bleu_scores, examples = evaluate_with_metrics(
     src_tokenizer=tokenize_en,
     pad_idx=trg_vocab.stoi["<pad>"],
     device=device,
-    method="greedy",
-    # beam_sizes=5
+    method="beam",
+    beam_sizes=5
 )
 
 print(f"\nFinal BLEU: {avg_bleu:.4f}")
