@@ -274,7 +274,7 @@ for s in example_sentences:
     pred = translate(s, model, src_vocab, trg_vocab, tokenize_en, method="beam", beam_sizes=5, use_bpe=USE_BPE, bpe_src=bpe_src, bpe_trg=bpe_trg) 
     print(f"EN: {s}")
     print(f"FR(pred): {pred}\n")
-
+#trg_vocab.stoi["<pad>"]
 # 7. Đánh giá tập test
 print("Evaluating on test set...")
 avg_bleu, ppl, bleu_scores, examples = evaluate_with_metrics(
@@ -283,7 +283,7 @@ avg_bleu, ppl, bleu_scores, examples = evaluate_with_metrics(
     src_vocab=src_vocab,
     trg_vocab=trg_vocab,
     src_tokenizer=tokenize_en,
-    pad_idx=trg_vocab.stoi["<pad>"],
+    pad_idx=pad_idx,
     device=device,
     method="beam",
     beam_sizes=5,
