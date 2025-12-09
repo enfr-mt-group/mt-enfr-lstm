@@ -3,7 +3,7 @@ import csv
 import torch
 import argparse
 from torch.utils.data import random_split
-from dataset import get_loader, tokenize_en, tokenize_fr, BPESubword
+from dataset import get_loader, tokenize_en, tokenize_fr
 from model import Encoder, Decoder, Seq2Seq
 from train import train_model
 from inference import translate
@@ -43,10 +43,6 @@ parser.add_argument("--dropout", type=float, default=0.3)
 parser.add_argument("--use_attention", action="store_true",
                     help="Enable Luong Attention in Decoder")
 
-parser.add_argument("--use_bpe", action="store_true")
-parser.add_argument("--bpe_vocab_size", type=int, default=10000)
-parser.add_argument("--bpe_min_freq", type=int, default=2)
-
 # Experiment preset
 parser.add_argument("--exp", type=str, default=None,
                     help="Experiment code: A1, A2, A3, A4, A5")
@@ -55,42 +51,21 @@ args = parser.parse_args()
 
 # 1.1 Kịch bản thực nghiệm
 experiment_presets = {
-    "A1": {
-        "embed_dim": 256, "hidden_dim": 512, "num_layers": 2, "dropout": 0.3,
-        "batch_size": 32, "lr": 0.001, "teacher_forcing_ratio": 0.5,
-        "n_epochs": 1, "use_attention": True,
-        "use_bpe": True
-    },
+    "A1": {"embed_dim": 256, "hidden_dim": 512, "num_layers": 2, "dropout": 0.3, "batch_size": 32, "lr": 0.001,
+           "teacher_forcing_ratio": 0.5, "n_epochs": 20, "use_attention": True},
 
-    "A2": {
-        "embed_dim": 512, "hidden_dim": 512, "num_layers": 2, "dropout": 0.3,
-        "batch_size": 32, "lr": 0.001, "teacher_forcing_ratio": 0.5,
-        "n_epochs": 20, "use_attention": True,
-        "use_bpe": False
-    },
+    "A2": {"embed_dim": 512, "hidden_dim": 512, "num_layers": 2, "dropout": 0.3, "batch_size": 32, "lr": 0.001,
+           "teacher_forcing_ratio": 0.5, "n_epochs": 20, "use_attention": True},
 
-    "A3": {
-        "embed_dim": 512, "hidden_dim": 512, "num_layers": 2, "dropout": 0.5,
-        "batch_size": 32, "lr": 0.001, "teacher_forcing_ratio": 0.5,
-        "n_epochs": 20, "use_attention": True,
-        "use_bpe": False
-    },
+    "A3": {"embed_dim": 512, "hidden_dim": 512, "num_layers": 2, "dropout": 0.5, "batch_size": 32, "lr": 0.001,
+           "teacher_forcing_ratio": 0.5, "n_epochs": 20, "use_attention": True},
 
-    "A4": {
-        "embed_dim": 512, "hidden_dim": 512, "num_layers": 2, "dropout": 0.3,
-        "batch_size": 128, "lr": 0.001, "teacher_forcing_ratio": 0.5,
-        "n_epochs": 20, "use_attention": True,
-        "use_bpe": True      
-    },
+    "A4": {"embed_dim": 512, "hidden_dim": 512, "num_layers": 2, "dropout": 0.3, "batch_size": 128, "lr": 0.001,
+           "teacher_forcing_ratio": 0.5, "n_epochs": 20, "use_attention": True},
 
-    "A5": {
-        "embed_dim": 512, "hidden_dim": 512, "num_layers": 2, "dropout": 0.3,
-        "batch_size": 64, "lr": 0.001, "teacher_forcing_ratio": 0.5,
-        "n_epochs": 20, "use_attention": True,
-        "use_bpe": True  
-    },
+    "A5": {"embed_dim": 512, "hidden_dim": 512, "num_layers": 2, "dropout": 0.3, "batch_size": 64, "lr": 0.001,
+           "teacher_forcing_ratio": 0.5, "n_epochs": 20, "use_attention": True},
 }
-
 
 # 1.2 áp dụng giá trị preset
 if args.exp is not None:
@@ -111,8 +86,6 @@ if args.exp is not None:
     args.teacher_forcing_ratio = preset["teacher_forcing_ratio"]
     args.n_epochs = preset["n_epochs"]
     args.use_attention = preset["use_attention"]
-    args.use_bpe = preset["use_bpe"]
-
 
 # 1.3 Tham số đưa vào mô hình
 BATCH_SIZE = args.batch_size
@@ -125,7 +98,6 @@ HIDDEN_DIM = args.hidden_dim
 NUM_LAYERS = args.num_layers
 DROPOUT = args.dropout
 USE_ATTENTION = args.use_attention
-USE_BPE = args.use_bpe
 
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
@@ -152,54 +124,21 @@ VAL_FR = "/kaggle/input/englishfrance/val.fr"
 TEST_EN = "/kaggle/input/englishfrance/test_2018_flickr.en"
 TEST_FR = "/kaggle/input/englishfrance/test_2018_flickr.fr"
 
-# BPE 
-if USE_BPE:
-    print("\nUsing BPE Subword Tokenization")
-
-    bpe_src = BPESubword(vocab_size=args.bpe_vocab_size, min_freq=args.bpe_min_freq)
-    bpe_trg = BPESubword(vocab_size=args.bpe_vocab_size, min_freq=args.bpe_min_freq)
-
-    # Train EN BPE
-    if not os.path.exists("bpe_src.json"):
-        print("Training BPE (EN)...")
-        lines = open(TRAIN_EN, encoding="utf-8").read().split("\n")
-        tok = [tokenize_en(l) for l in lines]
-        bpe_src.train(tok, "bpe_src.json")
-    else:
-        bpe_src.load("bpe_src.json")
-
-    # Train FR BPE
-    if not os.path.exists("bpe_trg.json"):
-        print("Training BPE (FR)...")
-        lines = open(TRAIN_FR, encoding="utf-8").read().split("\n")
-        tok = [tokenize_fr(l) for l in lines]
-        bpe_trg.train(tok, "bpe_trg.json")
-    else:
-        bpe_trg.load("bpe_trg.json")
-
-else:
-    bpe_src = None
-    bpe_trg = None
-
 # 3. load DataLoaders
 print("Building DataLoaders...")
 
 train_loader, src_vocab, trg_vocab = get_loader(
-    TRAIN_EN, TRAIN_FR, batch_size=BATCH_SIZE, shuffle=True, use_bpe=USE_BPE, bpe_src=bpe_src, bpe_trg=bpe_trg
+    TRAIN_EN, TRAIN_FR, batch_size=BATCH_SIZE, shuffle=True
 )
 val_loader, _, _ = get_loader(
-    VAL_EN, VAL_FR, batch_size=BATCH_SIZE, src_vocab=src_vocab, trg_vocab=trg_vocab, bpe_src=bpe_src, bpe_trg=bpe_trg
+    VAL_EN, VAL_FR, batch_size=BATCH_SIZE, src_vocab=src_vocab, trg_vocab=trg_vocab
 )
 test_loader, _, _ = get_loader(
-    TEST_EN, TEST_FR, batch_size=BATCH_SIZE, src_vocab=src_vocab, trg_vocab=trg_vocab, bpe_src=bpe_src, bpe_trg=bpe_trg
+    TEST_EN, TEST_FR, batch_size=BATCH_SIZE, src_vocab=src_vocab, trg_vocab=trg_vocab
 )
 
-if USE_BPE:
-    SRC_VOCAB_SIZE = bpe_src.tokenizer.get_vocab_size()
-    TRG_VOCAB_SIZE = bpe_trg.tokenizer.get_vocab_size()
-else:
-    SRC_VOCAB_SIZE = len(src_vocab.itos)
-    TRG_VOCAB_SIZE = len(trg_vocab.itos)
+SRC_VOCAB_SIZE = len(src_vocab.itos)
+TRG_VOCAB_SIZE = len(trg_vocab.itos)
 
 print(f"Dataset sizes: Train={len(train_loader.dataset)}, Val={len(val_loader.dataset)}, Test={len(test_loader.dataset)}")
 print(f"Vocab sizes: EN={SRC_VOCAB_SIZE}, FR={TRG_VOCAB_SIZE}")
@@ -229,22 +168,17 @@ print("Model initialized")
 # 5. Huấn luyện mô hình
 print("Start training...")
 
-pad_idx = (
-    bpe_trg.tokenizer.token_to_id("<pad>")
-    if USE_BPE else trg_vocab.stoi["<pad>"]
-)
-
 train_losses, val_losses = train_model(
     model,
     train_loader=train_loader,
     val_loader=val_loader,
-    pad_idx=pad_idx,
+    pad_idx=trg_vocab.stoi["<pad>"],
     n_epochs=N_EPOCHS,
     lr=LR,
     teacher_forcing_ratio=TEACHER_FORCING_RATIO,
     save_path=SAVE_PATH
 )
-#trg_vocab.stoi["<pad>"]
+
 plt.figure(figsize=(10,6))
 plt.plot(train_losses, label="Train Loss", marker="o")
 plt.plot(val_losses, label="Val Loss", marker="x")
@@ -271,10 +205,10 @@ example_sentences = [
 
 print("\n Translation examples:")
 for s in example_sentences:
-    pred = translate(s, model, src_vocab, trg_vocab, tokenize_en, method="beam", beam_sizes=5, use_bpe=USE_BPE, bpe_src=bpe_src, bpe_trg=bpe_trg) 
+    pred = translate(s, model, src_vocab, trg_vocab, tokenize_en, method="beam", beam_sizes=5) # 
     print(f"EN: {s}")
     print(f"FR(pred): {pred}\n")
-#trg_vocab.stoi["<pad>"]
+
 # 7. Đánh giá tập test
 print("Evaluating on test set...")
 avg_bleu, ppl, bleu_scores, examples = evaluate_with_metrics(
@@ -283,13 +217,10 @@ avg_bleu, ppl, bleu_scores, examples = evaluate_with_metrics(
     src_vocab=src_vocab,
     trg_vocab=trg_vocab,
     src_tokenizer=tokenize_en,
-    pad_idx=pad_idx,
+    pad_idx=trg_vocab.stoi["<pad>"],
     device=device,
     method="beam",
-    beam_sizes=5,
-    use_bpe=USE_BPE,
-    bpe_src=bpe_src,
-    bpe_trg=bpe_trg
+    beam_sizes=5
 )
 
 print(f"\nFinal BLEU: {avg_bleu:.4f}")
@@ -312,8 +243,7 @@ log_experiment(
         USE_ATTENTION,
         N_EPOCHS,
         avg_bleu,
-        ppl,
-        USE_BPE
+        ppl
     ]
 )
 
