@@ -81,6 +81,9 @@ def translate(sentence, model, src_vocab, trg_vocab, src_tokenizer, max_len=50, 
         for _ in range(max_len):
             new_beams = []
 
+            if not beams:
+                break
+
             for log_prob, seq, h, c in beams:
 
                 last_token = seq[-1]
@@ -106,7 +109,16 @@ def translate(sentence, model, src_vocab, trg_vocab, src_tokenizer, max_len=50, 
 
             beams = sorted(new_beams, key=lambda x: x[0], reverse=True)[:beam_sizes]
 
-        final_indexes = beams[0][1]
+        # Chọn câu tốt nhất
+        if completed:
+            # Lấy câu có log_prob cao nhất trong completed
+            final_indexes = max(completed, key=lambda x: x[0])[1]
+        elif beams:
+            # Nếu không có completed, lấy beam tốt nhất còn lại
+            final_indexes = beams[0][1]
+        else:
+            # không có gì cả
+            final_indexes = [sos, eos]
 
     else:
         raise ValueError("method phải là greedy hoặc beam")
