@@ -7,8 +7,9 @@ from collections import Counter
 import spacy
 from tqdm import tqdm
 import pickle
+from tokenizers import Tokenizer, models, pre_tokenizers, trainers
 
-# 1. Tokenizers
+# 1.1 Tokenizers
 try:
     spacy_en = spacy.load("en_core_web_sm")
 except:
@@ -24,6 +25,32 @@ def tokenize_en(text):
 
 def tokenize_fr(text):
     return [tok.text.lower() for tok in spacy_fr.tokenizer(text)]
+
+# 1.2 BPE Tokenizers (subword) 
+class BPESubword:
+    def __init__(self, vocab_size=10000, freq_threshold=2):
+        self.vocab_size = vocab_size
+        self.freq_threshold = freq_threshold
+        self.tokenizer = None
+
+    def train(self, sentences):
+        tokenizer = Tokenizer(models.BPE())
+        tokenizer.pre_tokenizer = pre_tokenizers.Whitespace()
+
+        trainer = trainers.BpeTrainer(
+            vocab_size=self.vocab_size,
+            min_frequency=self.freq_threshold,
+            special_tokens=["<pad>", "<sos>", "<eos>", "<unk>"]
+        )
+
+        tokenizer.train_from_iterator(sentences, trainer=trainer)
+        self.tokenizer = tokenizer
+
+    def encode(self, text):
+        return self.tokenizer.encode(text).tokens
+
+    def decode(self, tokens):
+        return self.tokenizer.decode(tokens)
 
 # 2. Vocabulary
 class Vocab:
@@ -71,9 +98,10 @@ class Vocab:
 # 3. Translation Dataset
 class TranslationDataset(Dataset):
     def __init__(self, src_path, trg_path, src_tokenizer, trg_tokenizer,
-                 src_vocab=None, trg_vocab=None):
+                 src_vocab=None, trg_vocab=None, use_bpe=False):
+        self.use_bpe = use_bpe
 
-        # đọc file (có thể là .gz)
+        # đọc file.gz
         def read_file(path):
             if path.endswith(".gz"):
                 with gzip.open(path, "rt", encoding="utf-8") as f:
@@ -86,11 +114,24 @@ class TranslationDataset(Dataset):
         src_lines = read_file(src_path)
         trg_lines = read_file(trg_path)
 
-        # tokenize
-        self.src_sentences = [src_tokenizer(line) for line in tqdm(src_lines, desc="Tokenizing EN")]
-        self.trg_sentences = [trg_tokenizer(line) for line in tqdm(trg_lines, desc="Tokenizing FR")]
+        # nếu sử dụng BPEsubword
+        if self.use_bpe:
+            print("Training BPE tokenizer...")
+            # train BPE trên raw text
+            self.src_bpe = BPESubword()
+            self.trg_bpe = BPESubword()
+            self.src_bpe.train(src_lines)
+            self.trg_bpe.train(trg_lines)
+            # encode câu thành subword tokens
+            self.src_sentences = [self.src_bpe.encode(s) for s in src_lines]
+            self.trg_sentences = [self.trg_bpe.encode(s) for s in trg_lines]
 
-        # xây vocab nếu chưa có
+        else:
+            # tokenize (nếu ko dùng bpe)
+            self.src_sentences = [src_tokenizer(s) for s in tqdm(src_lines, desc="Tokenizing EN")]
+            self.trg_sentences = [trg_tokenizer(s) for s in tqdm(trg_lines, desc="Tokenizing FR")]
+
+        # nếu ko BPE thì xây vocab 
         if src_vocab is None:
             self.src_vocab = Vocab(max_size=10000, freq_threshold=2)
             self.src_vocab.build_vocabulary(self.src_sentences)
@@ -151,12 +192,11 @@ class MyCollate:
 # 5. Build DataLoader
 def get_loader(src_path, trg_path, batch_size=64,
                src_tokenizer=tokenize_en, trg_tokenizer=tokenize_fr,
-               src_vocab=None, trg_vocab=None, shuffle=False):
+               src_vocab=None, trg_vocab=None, use_bpe=False, shuffle=False):
 
     ds = TranslationDataset(src_path, trg_path,
                             src_tokenizer, trg_tokenizer,
-                            src_vocab, trg_vocab)
-
+                            src_vocab, trg_vocab, use_bpe=use_bpe)
     pad_src = ds.src_pad_idx
     pad_trg = ds.trg_pad_idx
 
