@@ -238,13 +238,13 @@ train_losses, val_losses = train_model(
     model,
     train_loader=train_loader,
     val_loader=val_loader,
-    pad_idx=trg_vocab.stoi["<pad>"],
+    pad_idx=pad_idx,
     n_epochs=N_EPOCHS,
     lr=LR,
     teacher_forcing_ratio=TEACHER_FORCING_RATIO,
     save_path=SAVE_PATH
 )
-
+#trg_vocab.stoi["<pad>"]
 plt.figure(figsize=(10,6))
 plt.plot(train_losses, label="Train Loss", marker="o")
 plt.plot(val_losses, label="Val Loss", marker="x")
