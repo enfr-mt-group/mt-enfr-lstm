@@ -52,19 +52,19 @@ args = parser.parse_args()
 # 1.1 Kịch bản thực nghiệm
 experiment_presets = {
     "A1": {"embed_dim": 256, "hidden_dim": 512, "num_layers": 2, "dropout": 0.3, "batch_size": 32, "lr": 0.001,
-           "teacher_forcing_ratio": 0.5, "n_epochs": 20, "use_attention": True},
+           "teacher_forcing_ratio": 0.5, "n_epochs": 20, "use_attention": False},
 
     "A2": {"embed_dim": 512, "hidden_dim": 512, "num_layers": 2, "dropout": 0.3, "batch_size": 32, "lr": 0.001,
-           "teacher_forcing_ratio": 0.5, "n_epochs": 20, "use_attention": True},
+           "teacher_forcing_ratio": 0.5, "n_epochs": 20, "use_attention": False},
 
     "A3": {"embed_dim": 512, "hidden_dim": 512, "num_layers": 2, "dropout": 0.5, "batch_size": 32, "lr": 0.001,
-           "teacher_forcing_ratio": 0.5, "n_epochs": 20, "use_attention": True},
+           "teacher_forcing_ratio": 0.5, "n_epochs": 20, "use_attention": False},
 
     "A4": {"embed_dim": 512, "hidden_dim": 512, "num_layers": 2, "dropout": 0.3, "batch_size": 128, "lr": 0.001,
-           "teacher_forcing_ratio": 0.5, "n_epochs": 20, "use_attention": True},
+           "teacher_forcing_ratio": 0.5, "n_epochs": 20, "use_attention": False},
 
     "A5": {"embed_dim": 512, "hidden_dim": 512, "num_layers": 2, "dropout": 0.3, "batch_size": 64, "lr": 0.001,
-           "teacher_forcing_ratio": 0.5, "n_epochs": 20, "use_attention": True},
+           "teacher_forcing_ratio": 0.5, "n_epochs": 20, "use_attention": False},
 }
 
 # 1.2 áp dụng giá trị preset
@@ -205,7 +205,7 @@ example_sentences = [
 
 print("\n Translation examples:")
 for s in example_sentences:
-    pred = translate(s, model, src_vocab, trg_vocab, tokenize_en, method="beam", beam_sizes=5) # 
+    pred = translate(s, model, src_vocab, trg_vocab, tokenize_en, method="greedy", ) # beam_sizes=5
     print(f"EN: {s}")
     print(f"FR(pred): {pred}\n")
 
@@ -219,8 +219,8 @@ avg_bleu, ppl, bleu_scores, examples = evaluate_with_metrics(
     src_tokenizer=tokenize_en,
     pad_idx=trg_vocab.stoi["<pad>"],
     device=device,
-    method="beam",
-    beam_sizes=5
+    method="greedy",
+    # beam_sizes=5
 )
 
 print(f"\nFinal BLEU: {avg_bleu:.4f}")
