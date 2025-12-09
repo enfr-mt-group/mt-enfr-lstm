@@ -80,14 +80,14 @@ experiment_presets = {
         "embed_dim": 512, "hidden_dim": 512, "num_layers": 2, "dropout": 0.3,
         "batch_size": 128, "lr": 0.001, "teacher_forcing_ratio": 0.5,
         "n_epochs": 20, "use_attention": True,
-        "use_bpe": True        # <── Bật BPE
+        "use_bpe": True      
     },
 
     "A5": {
         "embed_dim": 512, "hidden_dim": 512, "num_layers": 2, "dropout": 0.3,
         "batch_size": 64, "lr": 0.001, "teacher_forcing_ratio": 0.5,
         "n_epochs": 20, "use_attention": True,
-        "use_bpe": True        # <── Bật BPE
+        "use_bpe": True  
     },
 }
 
@@ -152,21 +152,54 @@ VAL_FR = "/kaggle/input/englishfrance/val.fr"
 TEST_EN = "/kaggle/input/englishfrance/test_2018_flickr.en"
 TEST_FR = "/kaggle/input/englishfrance/test_2018_flickr.fr"
 
+# BPE 
+if USE_BPE:
+    print("\nUsing BPE Subword Tokenization")
+
+    bpe_src = BPESubword(vocab_size=args.bpe_vocab_size, min_freq=args.bpe_min_freq)
+    bpe_trg = BPESubword(vocab_size=args.bpe_vocab_size, min_freq=args.bpe_min_freq)
+
+    # Train EN BPE
+    if not os.path.exists("bpe_src.json"):
+        print("Training BPE (EN)...")
+        lines = open(TRAIN_EN, encoding="utf-8").read().split("\n")
+        tok = [tokenize_en(l) for l in lines]
+        bpe_src.train(tok, "bpe_src.json")
+    else:
+        bpe_src.load("bpe_src.json")
+
+    # Train FR BPE
+    if not os.path.exists("bpe_trg.json"):
+        print("Training BPE (FR)...")
+        lines = open(TRAIN_FR, encoding="utf-8").read().split("\n")
+        tok = [tokenize_fr(l) for l in lines]
+        bpe_trg.train(tok, "bpe_trg.json")
+    else:
+        bpe_trg.load("bpe_trg.json")
+
+else:
+    bpe_src = None
+    bpe_trg = None
+
 # 3. load DataLoaders
 print("Building DataLoaders...")
 
 train_loader, src_vocab, trg_vocab = get_loader(
-    TRAIN_EN, TRAIN_FR, batch_size=BATCH_SIZE, shuffle=True
+    TRAIN_EN, TRAIN_FR, batch_size=BATCH_SIZE, shuffle=True, use_bpe=USE_BPE, bpe_src=bpe_src, bpe_trg=bpe_trg
 )
 val_loader, _, _ = get_loader(
-    VAL_EN, VAL_FR, batch_size=BATCH_SIZE, src_vocab=src_vocab, trg_vocab=trg_vocab
+    VAL_EN, VAL_FR, batch_size=BATCH_SIZE, src_vocab=src_vocab, trg_vocab=trg_vocab, bpe_src=bpe_src, bpe_trg=bpe_trg
 )
 test_loader, _, _ = get_loader(
-    TEST_EN, TEST_FR, batch_size=BATCH_SIZE, src_vocab=src_vocab, trg_vocab=trg_vocab
+    TEST_EN, TEST_FR, batch_size=BATCH_SIZE, src_vocab=src_vocab, trg_vocab=trg_vocab, bpe_src=bpe_src, bpe_trg=bpe_trg
 )
 
-SRC_VOCAB_SIZE = len(src_vocab.itos)
-TRG_VOCAB_SIZE = len(trg_vocab.itos)
+if USE_BPE:
+    SRC_VOCAB_SIZE = bpe_src.tokenizer.get_vocab_size()
+    TRG_VOCAB_SIZE = bpe_trg.tokenizer.get_vocab_size()
+else:
+    SRC_VOCAB_SIZE = len(src_vocab.itos)
+    TRG_VOCAB_SIZE = len(trg_vocab.itos)
 
 print(f"Dataset sizes: Train={len(train_loader.dataset)}, Val={len(val_loader.dataset)}, Test={len(test_loader.dataset)}")
 print(f"Vocab sizes: EN={SRC_VOCAB_SIZE}, FR={TRG_VOCAB_SIZE}")
@@ -195,6 +228,11 @@ print("Model initialized")
 
 # 5. Huấn luyện mô hình
 print("Start training...")
+
+pad_idx = (
+    bpe_trg.tokenizer.token_to_id("<pad>")
+    if USE_BPE else trg_vocab.stoi["<pad>"]
+)
 
 train_losses, val_losses = train_model(
     model,
@@ -233,7 +271,7 @@ example_sentences = [
 
 print("\n Translation examples:")
 for s in example_sentences:
-    pred = translate(s, model, src_vocab, trg_vocab, tokenize_en, method="beam", beam_sizes=5) # 
+    pred = translate(s, model, src_vocab, trg_vocab, tokenize_en, method="beam", beam_sizes=5, use_bpe=USE_BPE, bpe_src=bpe_src, bpe_trg=bpe_trg) 
     print(f"EN: {s}")
     print(f"FR(pred): {pred}\n")
 
@@ -248,7 +286,10 @@ avg_bleu, ppl, bleu_scores, examples = evaluate_with_metrics(
     pad_idx=trg_vocab.stoi["<pad>"],
     device=device,
     method="beam",
-    beam_sizes=5
+    beam_sizes=5,
+    use_bpe=USE_BPE,
+    bpe_src=bpe_src,
+    bpe_trg=bpe_trg
 )
 
 print(f"\nFinal BLEU: {avg_bleu:.4f}")
@@ -271,7 +312,8 @@ log_experiment(
         USE_ATTENTION,
         N_EPOCHS,
         avg_bleu,
-        ppl
+        ppl,
+        USE_BPE
     ]
 )
 
