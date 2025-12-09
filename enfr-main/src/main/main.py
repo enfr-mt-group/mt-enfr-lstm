@@ -3,7 +3,7 @@ import csv
 import torch
 import argparse
 from torch.utils.data import random_split
-from dataset import get_loader, tokenize_en, tokenize_fr
+from dataset import get_loader, tokenize_en, tokenize_fr, BPESubword
 from model import Encoder, Decoder, Seq2Seq
 from train import train_model
 from inference import translate
@@ -43,6 +43,10 @@ parser.add_argument("--dropout", type=float, default=0.3)
 parser.add_argument("--use_attention", action="store_true",
                     help="Enable Luong Attention in Decoder")
 
+parser.add_argument("--use_bpe", action="store_true")
+parser.add_argument("--bpe_vocab_size", type=int, default=10000)
+parser.add_argument("--bpe_min_freq", type=int, default=2)
+
 # Experiment preset
 parser.add_argument("--exp", type=str, default=None,
                     help="Experiment code: A1, A2, A3, A4, A5")
@@ -51,21 +55,42 @@ args = parser.parse_args()
 
 # 1.1 Kịch bản thực nghiệm
 experiment_presets = {
-    "A1": {"embed_dim": 256, "hidden_dim": 512, "num_layers": 2, "dropout": 0.3, "batch_size": 32, "lr": 0.001,
-           "teacher_forcing_ratio": 0.5, "n_epochs": 20, "use_attention": True},
+    "A1": {
+        "embed_dim": 256, "hidden_dim": 512, "num_layers": 2, "dropout": 0.3,
+        "batch_size": 32, "lr": 0.001, "teacher_forcing_ratio": 0.5,
+        "n_epochs": 20, "use_attention": True,
+        "use_bpe": False
+    },
 
-    "A2": {"embed_dim": 512, "hidden_dim": 512, "num_layers": 2, "dropout": 0.3, "batch_size": 32, "lr": 0.001,
-           "teacher_forcing_ratio": 0.5, "n_epochs": 20, "use_attention": True},
+    "A2": {
+        "embed_dim": 512, "hidden_dim": 512, "num_layers": 2, "dropout": 0.3,
+        "batch_size": 32, "lr": 0.001, "teacher_forcing_ratio": 0.5,
+        "n_epochs": 20, "use_attention": True,
+        "use_bpe": False
+    },
 
-    "A3": {"embed_dim": 512, "hidden_dim": 512, "num_layers": 2, "dropout": 0.5, "batch_size": 32, "lr": 0.001,
-           "teacher_forcing_ratio": 0.5, "n_epochs": 20, "use_attention": True},
+    "A3": {
+        "embed_dim": 512, "hidden_dim": 512, "num_layers": 2, "dropout": 0.5,
+        "batch_size": 32, "lr": 0.001, "teacher_forcing_ratio": 0.5,
+        "n_epochs": 20, "use_attention": True,
+        "use_bpe": False
+    },
 
-    "A4": {"embed_dim": 512, "hidden_dim": 512, "num_layers": 2, "dropout": 0.3, "batch_size": 128, "lr": 0.001,
-           "teacher_forcing_ratio": 0.5, "n_epochs": 20, "use_attention": True},
+    "A4": {
+        "embed_dim": 512, "hidden_dim": 512, "num_layers": 2, "dropout": 0.3,
+        "batch_size": 128, "lr": 0.001, "teacher_forcing_ratio": 0.5,
+        "n_epochs": 20, "use_attention": True,
+        "use_bpe": True        # <── Bật BPE
+    },
 
-    "A5": {"embed_dim": 512, "hidden_dim": 512, "num_layers": 2, "dropout": 0.3, "batch_size": 64, "lr": 0.001,
-           "teacher_forcing_ratio": 0.5, "n_epochs": 20, "use_attention": True},
+    "A5": {
+        "embed_dim": 512, "hidden_dim": 512, "num_layers": 2, "dropout": 0.3,
+        "batch_size": 64, "lr": 0.001, "teacher_forcing_ratio": 0.5,
+        "n_epochs": 20, "use_attention": True,
+        "use_bpe": True        # <── Bật BPE
+    },
 }
+
 
 # 1.2 áp dụng giá trị preset
 if args.exp is not None:
@@ -86,6 +111,8 @@ if args.exp is not None:
     args.teacher_forcing_ratio = preset["teacher_forcing_ratio"]
     args.n_epochs = preset["n_epochs"]
     args.use_attention = preset["use_attention"]
+    args.use_bpe = preset["use_bpe"]
+
 
 # 1.3 Tham số đưa vào mô hình
 BATCH_SIZE = args.batch_size
@@ -98,6 +125,7 @@ HIDDEN_DIM = args.hidden_dim
 NUM_LAYERS = args.num_layers
 DROPOUT = args.dropout
 USE_ATTENTION = args.use_attention
+USE_BPE = args.use_bpe
 
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 

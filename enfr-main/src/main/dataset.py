@@ -7,8 +7,9 @@ from collections import Counter
 import spacy
 from tqdm import tqdm
 import pickle
+from tokenizers import Tokenizer, models, pre_tokenizers, trainers
 
-# 1. Tokenizers
+# 1.1 Tokenizers
 try:
     spacy_en = spacy.load("en_core_web_sm")
 except:
@@ -24,6 +25,51 @@ def tokenize_en(text):
 
 def tokenize_fr(text):
     return [tok.text.lower() for tok in spacy_fr.tokenizer(text)]
+
+#1.2. dùng BPE subword
+class BPESubword:
+   # Huấn luyện và encode BPE tokenizer
+
+    def __init__(self, vocab_size=10000, min_freq=2):
+        self.vocab_size = vocab_size
+        self.min_freq = min_freq
+        self.tokenizer = None
+
+    def train(self, sentences, save_path):
+        # sentences: list[list[str]] (tokenized sentences)
+
+        # Chuyển tokens thành chuỗi để BPE train
+        lines = [" ".join(s) for s in sentences]
+
+        # Model BPE rỗng
+        bpe_model = models.BPE()
+        self.tokenizer = Tokenizer(bpe_model)
+
+        self.tokenizer.pre_tokenizer = pre_tokenizers.Whitespace()
+
+        trainer = trainers.BpeTrainer(
+            vocab_size=self.vocab_size,
+            min_frequency=self.min_freq,
+            special_tokens=["<pad>", "<sos>", "<eos>", "<unk>"]
+        )
+
+        self.tokenizer.train_from_iterator(lines, trainer=trainer)
+
+        # Lưu lại để inference dùng chung
+        self.tokenizer.save(save_path)
+        print(f"Saved BPE tokenizer to {save_path}")
+
+    def load(self, path):
+        self.tokenizer = Tokenizer.from_file(path)
+
+    def encode(self, tokens):
+        #tokens: list[str] → return list[int]
+        text = " ".join(tokens)
+        ids = self.tokenizer.encode(text).ids
+        return ids
+
+    def pad_id(self):
+        return self.tokenizer.token_to_id("<pad>")
 
 # 2. Vocabulary
 class Vocab:
@@ -71,7 +117,11 @@ class Vocab:
 # 3. Translation Dataset
 class TranslationDataset(Dataset):
     def __init__(self, src_path, trg_path, src_tokenizer, trg_tokenizer,
-                 src_vocab=None, trg_vocab=None):
+                 src_vocab=None, trg_vocab=None, use_bpe=False, bpe_src=None, bpe_trg=None):
+        
+        self.use_bpe = use_bpe
+        self.bpe_src = bpe_src
+        self.bpe_trg = bpe_trg
 
         # đọc file (có thể là .gz)
         def read_file(path):
@@ -89,6 +139,14 @@ class TranslationDataset(Dataset):
         # tokenize
         self.src_sentences = [src_tokenizer(line) for line in tqdm(src_lines, desc="Tokenizing EN")]
         self.trg_sentences = [trg_tokenizer(line) for line in tqdm(trg_lines, desc="Tokenizing FR")]
+
+        # nếu dùng bpe thì ko dùng class Vocab
+        if use_bpe:
+            self.src_pad_idx = bpe_src.pad_id()
+            self.trg_pad_idx = bpe_trg.pad_id()
+            self.src_vocab = None
+            self.trg_vocab = None
+            return
 
         # xây vocab nếu chưa có
         if src_vocab is None:
@@ -110,6 +168,17 @@ class TranslationDataset(Dataset):
         return len(self.src_sentences)
 
     def __getitem__(self, idx):
+        if self.use_bpe:
+            src_ids = [self.bpe_src.tokenizer.token_to_id("<sos>")] + \
+                      self.bpe_src.encode(self.src_sentences[idx]) + \
+                      [self.bpe_src.tokenizer.token_to_id("<eos>")]
+
+            trg_ids = [self.bpe_trg.tokenizer.token_to_id("<sos>")] + \
+                      self.bpe_trg.encode(self.trg_sentences[idx]) + \
+                      [self.bpe_trg.tokenizer.token_to_id("<eos>")]
+
+            return torch.tensor(src_ids), torch.tensor(trg_ids)
+    
         src = [self.src_vocab.stoi["<sos>"]] + \
               self.src_vocab.numericalize(self.src_sentences[idx]) + \
               [self.src_vocab.stoi["<eos>"]]
@@ -151,12 +220,12 @@ class MyCollate:
 # 5. Build DataLoader
 def get_loader(src_path, trg_path, batch_size=64,
                src_tokenizer=tokenize_en, trg_tokenizer=tokenize_fr,
-               src_vocab=None, trg_vocab=None, shuffle=False):
+               src_vocab=None, trg_vocab=None, shuffle=False, use_bpe=False,
+               bpe_src=None, bpe_trg=None):
 
     ds = TranslationDataset(src_path, trg_path,
                             src_tokenizer, trg_tokenizer,
-                            src_vocab, trg_vocab)
-
+                            src_vocab, trg_vocab, use_bpe, bpe_src, bpe_trg)
     pad_src = ds.src_pad_idx
     pad_trg = ds.trg_pad_idx
 

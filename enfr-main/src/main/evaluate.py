@@ -38,7 +38,7 @@ def calculate_perplexity(model, dataloader, pad_idx, device="cuda"):
 
 # 2. BLEU + Example
 def evaluate_with_metrics(model, dataloader, src_vocab, trg_vocab,
-                          src_tokenizer, pad_idx, device="cuda", method="greedy", beam_sizes=5):
+                          src_tokenizer, pad_idx, device="cuda", method="greedy", beam_sizes=5, use_bpe=False, bpe_src=None, bpe_trg=None):
 
     model.eval()
     bleu_scores = []
@@ -56,29 +56,57 @@ def evaluate_with_metrics(model, dataloader, src_vocab, trg_vocab,
 
         # duyệt từng câu trong batch
         for j in range(batch_size):
-            # 1. Chuyển tensor -> câu English
-            src_seq = src[j, :src_len[j]].cpu().tolist()
-            clean_src = [
-                src_vocab.itos[idx]
-                for idx in src_seq
-                if idx not in [
-                    src_vocab.stoi["<sos>"],
-                    src_vocab.stoi["<eos>"],
-                    src_vocab.stoi["<pad>"],
+            if not use_bpe:
+                # 1. Chuyển tensor -> câu English
+                src_seq = src[j, :src_len[j]].cpu().tolist()
+                clean_src = [
+                    src_vocab.itos[idx]
+                    for idx in src_seq
+                    if idx not in [
+                        src_vocab.stoi["<sos>"],
+                        src_vocab.stoi["<eos>"],
+                        src_vocab.stoi["<pad>"],
+                    ]
                 ]
-            ]
-            src_sentence = " ".join(clean_src)
+                src_sentence = " ".join(clean_src)
+            else:
+                # BPE subword
+                src_ids = src[j, :src_len[j]].cpu().tolist()
+                # remove special tokens
+                removed = [
+                    id for id in src_ids
+                    if id not in {
+                        bpe_src.tokenizer.token_to_id("<sos>"),
+                        bpe_src.tokenizer.token_to_id("<eos>"),
+                        bpe_src.tokenizer.token_to_id("<pad>")
+                    }
+                ]
+                src_sentence = bpe_src.tokenizer.decode(removed, skip_special_tokens=True)
             # 2. Ground truth French
-            trg_seq = trg[j, :trg_len[j]].cpu().tolist()
-            trg_sentence = [
-                trg_vocab.itos[idx]
-                for idx in trg_seq
-                if idx not in [
-                    trg_vocab.stoi["<sos>"],
-                    trg_vocab.stoi["<eos>"],
-                    trg_vocab.stoi["<pad>"],
+            if not use_bpe:
+                trg_seq = trg[j, :trg_len[j]].cpu().tolist()
+                trg_sentence = [
+                    trg_vocab.itos[idx]
+                    for idx in trg_seq
+                    if idx not in [
+                        trg_vocab.stoi["<sos>"],
+                        trg_vocab.stoi["<eos>"],
+                        trg_vocab.stoi["<pad>"],
+                    ]
                 ]
-            ]
+            else:
+                trg_ids = trg[j, :trg_len[j]].cpu().tolist()
+
+                cleaned = [
+                    id for id in trg_ids
+                    if id not in {
+                        bpe_trg.tokenizer.token_to_id("<sos>"),
+                        bpe_trg.tokenizer.token_to_id("<eos>"),
+                        bpe_trg.tokenizer.token_to_id("<pad>")
+                    }
+                ]
+                trg_sentence_text = bpe_trg.tokenizer.decode(cleaned, skip_special_tokens=True)
+                trg_sentence = trg_sentence_text.split()
             # 3. Predicted French
             pred_sentence = translate(
                 src_sentence,
@@ -87,7 +115,10 @@ def evaluate_with_metrics(model, dataloader, src_vocab, trg_vocab,
                 trg_vocab,
                 src_tokenizer,
                 method=method, # "greedy" hoặc "beam"
-                beam_sizes=beam_sizes
+                beam_sizes=beam_sizes,
+                use_bpe=use_bpe,
+                bpe_src=bpe_src,
+                bpe_trg=bpe_trg
             ).split()
 
             # 4. Tính BLEU Score
