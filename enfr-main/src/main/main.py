@@ -121,8 +121,8 @@ TRAIN_FR = "/kaggle/input/englishfrance/train.fr"
 VAL_EN = "/kaggle/input/englishfrance/val.en"
 VAL_FR = "/kaggle/input/englishfrance/val.fr"
 
-TEST_EN = "/kaggle/input/englishfrance/test_2018_flickr.en"
-TEST_FR = "/kaggle/input/englishfrance/test_2018_flickr.fr"
+TEST_EN = "/kaggle/input/englishfrance/test_2017_flickr.en"
+TEST_FR = "/kaggle/input/englishfrance/test_2017_flickr.fr"
 
 # 3. load DataLoaders
 print("Building DataLoaders...")
