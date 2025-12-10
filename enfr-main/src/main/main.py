@@ -205,7 +205,7 @@ example_sentences = [
 
 print("\n Translation examples:")
 for s in example_sentences:
-    pred = translate(s, model, src_vocab, trg_vocab, tokenize_en, method="greedy") #, beam_sizes=3
+    pred = translate(s, model, src_vocab, trg_vocab, tokenize_en, method="beam", beam_sizes=5) 
     print(f"EN: {s}")
     print(f"FR(pred): {pred}\n")
 
@@ -219,8 +219,8 @@ avg_bleu, ppl, bleu_scores, examples = evaluate_with_metrics(
     src_tokenizer=tokenize_en,
     pad_idx=trg_vocab.stoi["<pad>"],
     device=device,
-    method="greedy",
-    #beam_sizes=3
+    method="beam",
+    beam_sizes=3
 )
 
 print(f"\nFinal BLEU: {avg_bleu:.4f}")
