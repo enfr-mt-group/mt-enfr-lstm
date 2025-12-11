@@ -220,7 +220,7 @@ avg_bleu, ppl, bleu_scores, examples = evaluate_with_metrics(
     pad_idx=trg_vocab.stoi["<pad>"],
     device=device,
     method="beam",
-    beam_sizes=3
+    beam_sizes=5
 )
 
 print(f"\nFinal BLEU: {avg_bleu:.4f}")
