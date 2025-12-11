@@ -51,20 +51,20 @@ args = parser.parse_args()
 
 # 1.1 Kịch bản thực nghiệm
 experiment_presets = {
-    "A1": {"embed_dim": 256, "hidden_dim": 512, "num_layers": 3, "dropout": 0.3, "batch_size": 32, "lr": 0.001,
-           "teacher_forcing_ratio": 0.5, "n_epochs": 20, "use_attention": True},
+    "A1": {"embed_dim": 256, "hidden_dim": 512, "num_layers": 2, "dropout": 0.3, "batch_size": 32, "lr": 0.001,
+           "teacher_forcing_ratio": 0.7, "n_epochs": 20, "use_attention": True},
 
-    "A2": {"embed_dim": 512, "hidden_dim": 512, "num_layers": 3, "dropout": 0.3, "batch_size": 32, "lr": 0.001,
-           "teacher_forcing_ratio": 0.5, "n_epochs": 20, "use_attention": True},
+    "A2": {"embed_dim": 512, "hidden_dim": 512, "num_layers": 2, "dropout": 0.3, "batch_size": 32, "lr": 0.001,
+           "teacher_forcing_ratio": 0.7, "n_epochs": 20, "use_attention": True},
 
-    "A3": {"embed_dim": 512, "hidden_dim": 512, "num_layers": 3, "dropout": 0.5, "batch_size": 32, "lr": 0.001,
-           "teacher_forcing_ratio": 0.5, "n_epochs": 20, "use_attention": True},
+    "A3": {"embed_dim": 512, "hidden_dim": 512, "num_layers": 2, "dropout": 0.5, "batch_size": 32, "lr": 0.001,
+           "teacher_forcing_ratio": 0.7, "n_epochs": 20, "use_attention": True},
 
-    "A4": {"embed_dim": 512, "hidden_dim": 512, "num_layers": 3, "dropout": 0.3, "batch_size": 128, "lr": 0.001,
-           "teacher_forcing_ratio": 0.5, "n_epochs": 20, "use_attention": True},
+    "A4": {"embed_dim": 512, "hidden_dim": 512, "num_layers": 2, "dropout": 0.3, "batch_size": 128, "lr": 0.001,
+           "teacher_forcing_ratio": 0.7, "n_epochs": 20, "use_attention": True},
 
-    "A5": {"embed_dim": 512, "hidden_dim": 512, "num_layers": 3, "dropout": 0.3, "batch_size": 64, "lr": 0.001,
-           "teacher_forcing_ratio": 0.5, "n_epochs": 20, "use_attention": True},
+    "A5": {"embed_dim": 512, "hidden_dim": 512, "num_layers": 2, "dropout": 0.3, "batch_size": 64, "lr": 0.001,
+           "teacher_forcing_ratio": 0.7, "n_epochs": 20, "use_attention": True},
 }
 
 # 1.2 áp dụng giá trị preset
@@ -205,7 +205,7 @@ example_sentences = [
 
 print("\n Translation examples:")
 for s in example_sentences:
-    pred = translate(s, model, src_vocab, trg_vocab, tokenize_en, method="beam", beam_sizes=5) 
+    pred = translate(s, model, src_vocab, trg_vocab, tokenize_en, method="beam", beam_sizes=3) 
     print(f"EN: {s}")
     print(f"FR(pred): {pred}\n")
 
@@ -220,7 +220,7 @@ avg_bleu, ppl, bleu_scores, examples = evaluate_with_metrics(
     pad_idx=trg_vocab.stoi["<pad>"],
     device=device,
     method="beam",
-    beam_sizes=5
+    beam_sizes=3
 )
 
 print(f"\nFinal BLEU: {avg_bleu:.4f}")
