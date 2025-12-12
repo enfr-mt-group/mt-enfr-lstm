@@ -45,7 +45,6 @@ def evaluate_with_metrics(model, dataloader, src_vocab, trg_vocab,
     bleu_scores = []
     examples = []
     full_results = [] 
-    unk_counts = []
 
     smooth_fn = SmoothingFunction().method1
 
@@ -93,9 +92,6 @@ def evaluate_with_metrics(model, dataloader, src_vocab, trg_vocab,
                 beam_sizes=beam_sizes
             ).split()
 
-            count_unk = sum(1 for w in pred_sentence if w == "<unk>")
-            unk_counts.append(count_unk)
-
             # 4. Tính BLEU Score
             bleu = sentence_bleu(
                 [trg_sentence],
@@ -127,22 +123,6 @@ def evaluate_with_metrics(model, dataloader, src_vocab, trg_vocab,
     # Perplexity
     ppl = calculate_perplexity(model, dataloader, pad_idx, device)
 
-    plt.figure(figsize=(10, 5))
-    plt.hist(
-        unk_counts,
-        bins=range(0, max(unk_counts) + 2),
-        edgecolor="black"
-    )
-    plt.title("Distribution of <unk> Token Count in Predicted Sentences")
-    plt.xlabel("Number of <unk> tokens")
-    plt.ylabel("Frequency")
-    plt.grid(axis="y", alpha=0.5)
-    plt.tight_layout()
-    plt.savefig("unk_distribution.png")
-    plt.close()
-
-    print("UNK distribution chart saved to unk_distribution.png")
-
     print(f"\n==============================")
     print(f"Average BLEU score: {avg_bleu:.4f}")
     print(f"Perplexity: {ppl:.4f}")
@@ -165,16 +145,7 @@ def evaluate_with_metrics(model, dataloader, src_vocab, trg_vocab,
             f.write(f"FR(pred): {ex['pred']}\n")
             f.write(f"FR(true): {ex['trg']}\n")
             f.write(f"BLEU: {ex['bleu']:.4f}\n")
-            f.write(f"UNK_COUNT: {ex['unk']}\n")
             f.write("-----------------------------------\n")
-    
-    with open("test_full_results.csv", "w", newline="", encoding="utf-8") as f:
-        writer = csv.writer(f)
-        writer.writerow(["EN", "FR_pred", "FR_true", "BLEU", "UNK_COUNT"])
-        for ex in full_results:
-            writer.writerow([ex["src"], ex["pred"], ex["trg"], ex["bleu"], ex["unk"]])
-
-    print("Full test results saved to test_full_results.csv")
 
     print("Full test results saved to test_full_results.txt")
 
