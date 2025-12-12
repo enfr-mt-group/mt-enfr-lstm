@@ -124,7 +124,7 @@ VAL_FR = "/kaggle/input/englishfrance/val.fr"
 TEST_EN = "/kaggle/input/englishfrance/test_2016_flickr.en"
 TEST_FR = "/kaggle/input/englishfrance/test_2016_flickr.fr"
 
-# 3. load DataLoaders
+# 3. load DataLoaderss
 print("Building DataLoaders...")
 
 train_loader, src_vocab, trg_vocab = get_loader(
