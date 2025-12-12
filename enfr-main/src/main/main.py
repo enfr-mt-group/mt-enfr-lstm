@@ -209,7 +209,7 @@ for s in example_sentences:
     print(f"EN: {s}")
     print(f"FR(pred): {pred}\n")
 
-# 7. Đánh giá tập test
+# 7. Đánh giá tập testt
 print("Evaluating on test set...")
 avg_bleu, ppl, bleu_scores, examples = evaluate_with_metrics(
     model=model,
