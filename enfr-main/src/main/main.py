@@ -52,19 +52,19 @@ args = parser.parse_args()
 # 1.1 Kịch bản thực nghiệm
 experiment_presets = {
     "A1": {"embed_dim": 256, "hidden_dim": 512, "num_layers": 2, "dropout": 0.3, "batch_size": 32, "lr": 0.001,
-           "teacher_forcing_ratio": 0.5, "n_epochs": 20, "use_attention": False},
+           "teacher_forcing_ratio": 0.5, "n_epochs": 20, "use_attention": True},
 
     "A2": {"embed_dim": 512, "hidden_dim": 512, "num_layers": 2, "dropout": 0.3, "batch_size": 32, "lr": 0.001,
-           "teacher_forcing_ratio": 0.5, "n_epochs": 20, "use_attention": False},
+           "teacher_forcing_ratio": 0.5, "n_epochs": 20, "use_attention": True},
 
     "A3": {"embed_dim": 512, "hidden_dim": 512, "num_layers": 2, "dropout": 0.5, "batch_size": 32, "lr": 0.001,
-           "teacher_forcing_ratio": 0.5, "n_epochs": 20, "use_attention": False},
+           "teacher_forcing_ratio": 0.5, "n_epochs": 20, "use_attention": True},
 
     "A4": {"embed_dim": 512, "hidden_dim": 512, "num_layers": 2, "dropout": 0.3, "batch_size": 128, "lr": 0.001,
-           "teacher_forcing_ratio": 0.5, "n_epochs": 20, "use_attention": False},
+           "teacher_forcing_ratio": 0.5, "n_epochs": 20, "use_attention": True},
 
     "A5": {"embed_dim": 512, "hidden_dim": 512, "num_layers": 2, "dropout": 0.3, "batch_size": 64, "lr": 0.001,
-           "teacher_forcing_ratio": 0.5, "n_epochs": 20, "use_attention": False},
+           "teacher_forcing_ratio": 0.5, "n_epochs": 20, "use_attention": True},
 }
 
 # 1.2 áp dụng giá trị preset
@@ -121,8 +121,8 @@ TRAIN_FR = "/kaggle/input/englishfrance/train.fr"
 VAL_EN = "/kaggle/input/englishfrance/val.en"
 VAL_FR = "/kaggle/input/englishfrance/val.fr"
 
-TEST_EN = "/kaggle/input/englishfrance/test_2016_flickr.en"
-TEST_FR = "/kaggle/input/englishfrance/test_2016_flickr.fr"
+TEST_EN = "/kaggle/input/englishfrance/test_2017_flickr.en"
+TEST_FR = "/kaggle/input/englishfrance/test_2017_flickr.fr"
 
 # 3. load DataLoaders
 print("Building DataLoaders...")
