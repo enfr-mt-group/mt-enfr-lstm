@@ -105,7 +105,6 @@ def evaluate_with_metrics(model, dataloader, src_vocab, trg_vocab,
                 "pred": pred_sentence,
                 "trg": " ".join(trg_sentence),
                 "bleu": bleu,
-                "unk": count_unk
             })
 
             # Lưu 5 ví dụ đầu
