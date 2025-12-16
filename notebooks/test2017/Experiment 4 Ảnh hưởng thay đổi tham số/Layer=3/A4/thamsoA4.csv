@@ -1,0 +1,2 @@
+exp,embed,hidden,layers,dropout,batch,lr,teacher_forcing,attention,epochs,BLEU,PPL
+A4,512,512,3,0.3,128,0.001,0.5,TRUE,20,0.319014059,12.39626181
