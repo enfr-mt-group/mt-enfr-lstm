@@ -121,8 +121,8 @@ TRAIN_FR = "/kaggle/input/englishfrance/train.fr"
 VAL_EN = "/kaggle/input/englishfrance/val.en"
 VAL_FR = "/kaggle/input/englishfrance/val.fr"
 
-TEST_EN = "/kaggle/input/englishfrance/test_2016_flickr.en"
-TEST_FR = "/kaggle/input/englishfrance/test_2016_flickr.fr"
+TEST_EN = "/kaggle/input/englishfrance/test_2018_flickr.en"
+TEST_FR = "/kaggle/input/englishfrance/test_2018_flickr.fr"
 
 # 3. load DataLoaderss
 print("Building DataLoaders...")
@@ -200,12 +200,12 @@ print("Best model loaded")
 example_sentences = [
     "a man wearing a hat is standing in front of a book store while looking at a window .",
     "a girl in a pink coat is looking for a book while standing in a building .",
-    "a person wearing goggles is sledding down a hill in front of a building ."
+    "Hello I love my school ."
 ]
 
 print("\n Translation examples:")
 for s in example_sentences:
-    pred = translate(s, model, src_vocab, trg_vocab, tokenize_en, method="beam", beam_sizes=3) #
+    pred = translate(s, model, src_vocab, trg_vocab, tokenize_en, method="beam", beam_sizes=5) #
     print(f"EN: {s}")
     print(f"FR(pred): {pred}\n")
 
@@ -220,7 +220,7 @@ avg_bleu, ppl, bleu_scores, examples = evaluate_with_metrics(
     pad_idx=trg_vocab.stoi["<pad>"],
     device=device,
     method="beam",
-    beam_sizes=3
+    beam_sizes=5
 )
 
 print(f"\nFinal BLEU: {avg_bleu:.4f}")
