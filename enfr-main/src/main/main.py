@@ -52,7 +52,7 @@ args = parser.parse_args()
 # 1.1 Kịch bản thực nghiệm
 experiment_presets = {
     "A1": {"embed_dim": 256, "hidden_dim": 512, "num_layers": 2, "dropout": 0.3, "batch_size": 32, "lr": 0.001,
-           "teacher_forcing_ratio": 0.7, "n_epochs": 1, "use_attention": True},
+           "teacher_forcing_ratio": 0.7, "n_epochs": 20, "use_attention": True},
 
     "A2": {"embed_dim": 512, "hidden_dim": 512, "num_layers": 2, "dropout": 0.3, "batch_size": 32, "lr": 0.001,
            "teacher_forcing_ratio": 0.7, "n_epochs": 20, "use_attention": True},
@@ -121,8 +121,8 @@ TRAIN_FR = "/kaggle/input/englishfrance/train.fr"
 VAL_EN = "/kaggle/input/englishfrance/val.en"
 VAL_FR = "/kaggle/input/englishfrance/val.fr"
 
-TEST_EN = "/kaggle/input/englishfrance/test_2018_flickr.en"
-TEST_FR = "/kaggle/input/englishfrance/test_2018_flickr.fr"
+TEST_EN = "/kaggle/input/englishfrance/test_2016_flickr.en"
+TEST_FR = "/kaggle/input/englishfrance/test_2016_flickr.fr"
 
 # 3. load DataLoaderss
 print("Building DataLoaders...")
@@ -172,8 +172,6 @@ train_losses, val_losses = train_model(
     model,
     train_loader=train_loader,
     val_loader=val_loader,
-    src_vocab=src_vocab,
-    trg_vocab=trg_vocab,
     pad_idx=trg_vocab.stoi["<pad>"],
     n_epochs=N_EPOCHS,
     lr=LR,
@@ -194,11 +192,9 @@ plt.tight_layout()
 plt.savefig("loss_curve.png")
 plt.show()
 
-checkpoint = torch.load(SAVE_PATH, map_location=device)
-model.load_state_dict(checkpoint["model_state"])
+model.load_state_dict(torch.load(SAVE_PATH))
 model.to(device)
 print("Best model loaded")
-
 
 # 6. Ví dụ dự đoán dịch câu từ Anh sang Pháp
 example_sentences = [
@@ -209,7 +205,7 @@ example_sentences = [
 
 print("\n Translation examples:")
 for s in example_sentences:
-    pred = translate(s, model, src_vocab, trg_vocab, tokenize_en, method="beam", beam_sizes=5) #
+    pred = translate(s, model, src_vocab, trg_vocab, tokenize_en, method="beam", beam_sizes=3) #
     print(f"EN: {s}")
     print(f"FR(pred): {pred}\n")
 
@@ -224,7 +220,7 @@ avg_bleu, ppl, bleu_scores, examples = evaluate_with_metrics(
     pad_idx=trg_vocab.stoi["<pad>"],
     device=device,
     method="beam",
-    beam_sizes=5
+    beam_sizes=3
 )
 
 print(f"\nFinal BLEU: {avg_bleu:.4f}")

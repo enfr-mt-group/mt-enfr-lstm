@@ -2,16 +2,7 @@ import torch
 from tabulate import tabulate
 
 def load_checkpoint(path):
-    checkpoint = torch.load(path, map_location="cpu")
-
-    # checkpoint mới
-    if isinstance(checkpoint, dict) and "model_state" in checkpoint:
-        state_dict = checkpoint["model_state"]
-        print("Checkpoint type: FULL (model_state + vocab + config)")
-    else:
-        state_dict = checkpoint
-        print("Checkpoint type: STATE_DICT only")
-
+    state_dict = torch.load(path, map_location="cpu")
     print("Số lượng trọng số:", len(state_dict))
 
     # 1. BẢNG TỔNG HỢP TẤT CẢ WEIGHTS 
