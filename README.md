@@ -1,4 +1,3 @@
-
 DỊCH MÁY ANH → PHÁP
 
 ## **Mô hình Encoder–Decoder LSTM (Seq2Seq)**
@@ -205,6 +204,6 @@ Các cải tiến này thường tăng BLEU lên **24–30+**.
 | **Đỗ Minh Quân**      | 3122411166 | Xử lý dữ liệu, xây dựng vocab, cài đặt inference & BLEU |
 | **Lê Thị Mỹ Hương** | 3122411077 | Xây dựng mô hình, huấn luyện, phân tích lỗi             |
 
-GVHD: TS. Nguyễn Tuấn Đăng
+GVHD: PGS. TS. Nguyễn Tuấn Đăng
 
 **Khoa Công nghệ Thông tin – ĐH Sài Gòn**
