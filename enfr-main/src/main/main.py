@@ -121,8 +121,8 @@ TRAIN_FR = "/kaggle/input/englishfrance/train.fr"
 VAL_EN = "/kaggle/input/englishfrance/val.en"
 VAL_FR = "/kaggle/input/englishfrance/val.fr"
 
-TEST_EN = "/kaggle/input/englishfrance/test_2016_flickr.en"
-TEST_FR = "/kaggle/input/englishfrance/test_2016_flickr.fr"
+TEST_EN = "/kaggle/input/englishfrance/test_2018_flickr.en"
+TEST_FR = "/kaggle/input/englishfrance/test_2018_flickr.fr"
 
 # 3. load DataLoaderss
 print("Building DataLoaders...")
@@ -172,6 +172,8 @@ train_losses, val_losses = train_model(
     model,
     train_loader=train_loader,
     val_loader=val_loader,
+    src_vocab=src_vocab,
+    trg_vocab=trg_vocab,
     pad_idx=trg_vocab.stoi["<pad>"],
     n_epochs=N_EPOCHS,
     lr=LR,
@@ -192,9 +194,11 @@ plt.tight_layout()
 plt.savefig("loss_curve.png")
 plt.show()
 
-model.load_state_dict(torch.load(SAVE_PATH))
+checkpoint = torch.load(SAVE_PATH, map_location=device)
+model.load_state_dict(checkpoint["model_state"])
 model.to(device)
 print("Best model loaded")
+
 
 # 6. Ví dụ dự đoán dịch câu từ Anh sang Pháp
 example_sentences = [

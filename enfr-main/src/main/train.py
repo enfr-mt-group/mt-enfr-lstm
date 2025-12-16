@@ -63,7 +63,7 @@ def evaluate(model, dataloader, criterion, pad_idx):
     return epoch_loss / len(dataloader)
 
 # 4. Huấn luyện đầy đủ + Early stopping + Save best
-def train_model(model, train_loader, val_loader, pad_idx,
+def train_model(model, train_loader, val_loader, src_vocab, trg_vocab, pad_idx,
                 n_epochs=20, lr=0.001, teacher_forcing_ratio=0.5,
                 save_path="best_model.pth"):
 
@@ -95,7 +95,17 @@ def train_model(model, train_loader, val_loader, pad_idx,
         if val_loss < best_val_loss:
             best_val_loss = val_loss
             os.makedirs(os.path.dirname(save_path), exist_ok=True)
-            torch.save(model.state_dict(), save_path)
+             torch.save({
+                "model_state": model.state_dict(),
+                "src_vocab": src_vocab,
+                "trg_vocab": trg_vocab,
+                "config": {
+                    "embed_dim": model.encoder.embedding.embedding_dim,
+                    "hidden_dim": model.encoder.lstm.hidden_size,
+                    "num_layers": model.encoder.lstm.num_layers,
+                    "dropout": model.encoder.dropout.p
+                }
+            }, save_path)
             epochs_no_improve = 0
             print(" Best model saved")
         else:
