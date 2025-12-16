@@ -95,7 +95,7 @@ def train_model(model, train_loader, val_loader, src_vocab, trg_vocab, pad_idx,
         if val_loss < best_val_loss:
             best_val_loss = val_loss
             os.makedirs(os.path.dirname(save_path), exist_ok=True)
-             torch.save({
+            torch.save({
                 "model_state": model.state_dict(),
                 "src_vocab": src_vocab,
                 "trg_vocab": trg_vocab,
